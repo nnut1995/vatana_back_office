@@ -6,21 +6,41 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node --env-file=.env.local --import tsx scripts/seed.ts",
+    "pm2:start": "npm run build && pm2 startOrReload ecosystem.config.cjs --only vatana-back-office --update-env",
+    "pm2:restart": "npm run build && pm2 restart ecosystem.config.cjs --only vatana-back-office --update-env",
+    "pm2:dev": "pm2 startOrReload ecosystem.config.cjs --only vatana-back-office-dev --update-env",
+    "pm2:dev:restart": "pm2 restart ecosystem.config.cjs --only vatana-back-office-dev --update-env",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:delete": "pm2 delete ecosystem.config.cjs",
+    "pm2:logs": "pm2 logs vatana-back-office",
+    "pm2:dev:logs": "pm2 logs vatana-back-office-dev"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1095.0",
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.2.0",
+    "@mui/material": "^9.2.0",
+    "@mui/material-nextjs": "^9.1.1",
+    "bcryptjs": "^3.0.3",
+    "mongodb": "^7.5.0",
     "next": "16.2.11",
+    "next-auth": "^5.0.0-beta.32",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
-    "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,109 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Container,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("admin@vatana.local");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setLoading(false);
+    if (res?.error) {
+      setError("Invalid email or password.");
+      return;
+    }
+    router.push("/");
+    router.refresh();
+  }
+
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        bgcolor: "background.default",
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper sx={{ p: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Avatar sx={{ bgcolor: "primary.main", mb: 2 }}>
+            <LockOutlinedIcon />
+          </Avatar>
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            Vatana Back Office
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Sign in to continue
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
+            <TextField
+              label="Email"
+              type="email"
+              fullWidth
+              required
+              margin="normal"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextField
+              label="Password"
+              type="password"
+              fullWidth
+              required
+              margin="normal"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              size="large"
+              disabled={loading}
+              sx={{ mt: 3 }}
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </Button>
+          </Box>
+        </Paper>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mt: 2 }}>
+          Default seed: admin@vatana.local / admin123
+        </Typography>
+      </Container>
+    </Box>
+  );
+}
