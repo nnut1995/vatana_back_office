@@ -12,6 +12,8 @@
     "pm2:restart": "npm run build && pm2 restart ecosystem.config.cjs --only vatana-back-office --update-env",
     "pm2:dev": "pm2 startOrReload ecosystem.config.cjs --only vatana-back-office-dev --update-env",
     "pm2:dev:restart": "pm2 restart ecosystem.config.cjs --only vatana-back-office-dev --update-env",
+    "pm2:tunnel": "pm2 startOrReload ecosystem.config.cjs --only vatana-back-office-tunnel --update-env",
+    "pm2:tunnel:logs": "pm2 logs vatana-back-office-tunnel",
     "pm2:stop": "pm2 stop ecosystem.config.cjs",
     "pm2:delete": "pm2 delete ecosystem.config.cjs",
     "pm2:logs": "pm2 logs vatana-back-office",

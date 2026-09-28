@@ -40,13 +40,13 @@ export function ProductImageControl({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setKey(previous);
-        setError(data.error ?? "Could not save the photo.");
+        setError(data.error ?? "บันทึกรูปภาพไม่สำเร็จ");
         return;
       }
       router.refresh();
     } catch {
       setKey(previous);
-      setError("Could not save the photo.");
+      setError("บันทึกรูปภาพไม่สำเร็จ");
     }
   }
 

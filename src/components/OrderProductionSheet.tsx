@@ -11,12 +11,16 @@ import {
 } from "@mui/material";
 import { formatNumber } from "@/lib/format";
 import { ProductImageControl } from "@/components/ProductImageControl";
+import { ProductImagePreview } from "@/components/ProductImagePreview";
 import { FinishingsControl } from "@/components/FinishingsControl";
+import { ProductStatusControl } from "@/components/ProductStatusControl";
+import { thaiDefault } from "@/lib/thai";
 import {
   SIZES,
   variantTotal,
   productTotal,
   productFinishings,
+  productStatus,
   type OrderProduct,
   type SerializedOrder,
 } from "@/types/order";
@@ -51,14 +55,16 @@ function ColorSwatch({ color }: { color: string }) {
   );
 }
 
-function ProductRow({
+export function ProductRow({
   product,
   orderId,
   index,
+  previewImage = false,
 }: {
   product: OrderProduct;
   orderId: string;
   index: number;
+  previewImage?: boolean;
 }) {
   return (
     <Paper sx={{ overflow: "hidden" }}>
@@ -80,44 +86,65 @@ function ProductRow({
             bgcolor: "grey.50",
           }}
         >
-          <ProductImageControl
+          {previewImage ? <ProductImagePreview image={product} alt={product.designName} /> : <ProductImageControl
             orderId={orderId}
             index={index}
             imageKey={product.imageKey}
             imageUrl={product.imageUrl}
             alt={product.designName}
-          />
+          />}
           {product.material && (
             <Typography variant="caption" sx={{ fontWeight: 700 }}>
               {product.material}
             </Typography>
           )}
           <Typography variant="caption" color="text.secondary" align="center">
-            {product.productType}
+            {thaiDefault(product.productType)}
           </Typography>
         </Box>
 
         {/* Middle: size grid */}
         <Box sx={{ flexGrow: 1, minWidth: 0, overflowX: "auto" }}>
-          <Box sx={{ px: 2, pt: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontFamily: "var(--font-geist-mono), monospace" }}>
-              {product.styleCode}
-            </Typography>
-            <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
-              {product.designName}
-            </Typography>
+          <Box
+            sx={{
+              px: 2,
+              pt: 1.5,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontFamily: "var(--font-geist-mono), monospace" }}>
+                {product.styleCode}
+              </Typography>
+              <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
+                {product.designName}
+              </Typography>
+            </Box>
+            <ProductStatusControl
+              key={`${orderId}-${index}-${productStatus(product)}-${product.productionNotes ?? ""}`}
+              orderId={orderId}
+              index={index}
+              status={productStatus(product)}
+              history={product.history}
+              orderedUnits={productTotal(product)}
+              productionNotes={product.productionNotes}
+            />
           </Box>
           <Table size="small" sx={{ mt: 0.5 }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Colour</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>สี</TableCell>
                 {SIZES.map((s) => (
                   <TableCell key={s} align="center" sx={{ fontWeight: 600 }}>
                     {s}
                   </TableCell>
                 ))}
                 <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  TOTAL
+                  รวม
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -140,7 +167,7 @@ function ProductRow({
               ))}
               {product.variants.length > 1 && (
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Product total</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>รวมสินค้านี้</TableCell>
                   <TableCell colSpan={SIZES.length} />
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
                     {formatNumber(productTotal(product))}

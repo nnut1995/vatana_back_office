@@ -5,6 +5,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
 import type { Finishing } from "@/types/order";
+import { thaiDefault } from "@/lib/thai";
 
 /** A finishing while it is being edited: `imageKey` is null until one is picked. */
 export interface FinishingForm {
@@ -20,7 +21,7 @@ export const emptyFinishing = (description = ""): FinishingForm => ({
 
 export function toFinishingForm(finishing: Finishing): FinishingForm {
   return {
-    description: finishing.description,
+    description: thaiDefault(finishing.description),
     imageKey: finishing.imageKey ?? null,
     imageUrl: finishing.imageUrl,
   };
@@ -61,13 +62,13 @@ export function FinishingsEditor({
             compact
             imageKey={finishing.imageKey}
             fallbackSrc={finishing.imageUrl}
-            alt={finishing.description || `Finishing ${i + 1}`}
+            alt={finishing.description || `งานตกแต่ง ${i + 1}`}
             size={56}
             disabled={disabled}
             onChange={(key) => patch(i, { imageKey: key })}
           />
           <TextField
-            placeholder="Description, e.g. Print On"
+            placeholder="รายละเอียด เช่น พิมพ์ลาย"
             size="small"
             fullWidth
             disabled={disabled}
@@ -78,7 +79,7 @@ export function FinishingsEditor({
           <IconButton
             size="small"
             disabled={disabled}
-            aria-label={`Remove finishing ${i + 1}`}
+            aria-label={`ลบงานตกแต่ง ${i + 1}`}
             onClick={() => onChange(value.filter((_, j) => j !== i))}
           >
             <DeleteOutlineIcon fontSize="small" />
@@ -88,7 +89,7 @@ export function FinishingsEditor({
 
       {value.length === 0 && (
         <Typography variant="caption" color="text.secondary">
-          No finishing steps yet.
+          ยังไม่มีรายการงานตกแต่ง
         </Typography>
       )}
 
@@ -99,7 +100,7 @@ export function FinishingsEditor({
           disabled={disabled}
           onClick={() => onChange([...value, emptyFinishing()])}
         >
-          Add finishing
+          เพิ่มงานตกแต่ง
         </Button>
       </Box>
     </Stack>

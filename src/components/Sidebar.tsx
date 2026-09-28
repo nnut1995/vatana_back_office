@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: "▦" },
-  { href: "/orders", label: "Orders", icon: "▤" },
+  { href: "/", label: "ภาพรวม", icon: "▦" },
+  { href: "/orders", label: "คำสั่งซื้อ", icon: "▤" },
 ];
 
 export function Sidebar() {
@@ -42,7 +42,7 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t border-black/10 p-4 text-xs text-foreground/50 dark:border-white/10">
-        Back Office v0.1
+        ระบบหลังบ้าน รุ่น 0.1
       </div>
     </aside>
   );

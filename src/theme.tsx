@@ -3,6 +3,7 @@
 import { forwardRef } from "react";
 import NextLink, { type LinkProps as NextLinkProps } from "next/link";
 import { createTheme } from "@mui/material/styles";
+import { thTH } from "@mui/material/locale";
 
 // Lets MUI components (Button, Link, ListItemButton…) use Next.js client-side
 // navigation via a plain `href` prop, without passing the Link component across
@@ -24,7 +25,7 @@ const theme = createTheme({
   },
   shape: { borderRadius: 10 },
   typography: {
-    fontFamily: "var(--font-geist-sans), system-ui, Arial, sans-serif",
+    fontFamily: 'var(--font-geist-sans), "Leelawadee UI", Tahoma, Thonburi, sans-serif',
     h4: { fontWeight: 600 },
     h6: { fontWeight: 600 },
   },
@@ -37,6 +38,6 @@ const theme = createTheme({
     MuiLink: { defaultProps: { component: LinkBehavior } },
     MuiButtonBase: { defaultProps: { LinkComponent: LinkBehavior } },
   },
-});
+}, thTH);
 
 export default theme;

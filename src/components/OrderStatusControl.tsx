@@ -46,6 +46,7 @@ export function OrderStatusControl({
     <Select
       size={size}
       value={value}
+      inputProps={{ "aria-label": "สถานะคำสั่งซื้อ" }}
       disabled={saving}
       onChange={(e) => changeStatus(e.target.value as OrderStatus)}
       sx={{ minWidth: 150 }}

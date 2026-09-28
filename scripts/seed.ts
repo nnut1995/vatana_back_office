@@ -36,6 +36,7 @@ const product = (
   designName,
   productType: "ADULTS UNISEX T-SHIRT",
   material,
+  status: "sample",
   finishings: FINISHINGS,
   variants: variants.map((v) => ({ color: v.color, sizes: sizes(v.qty) })),
 });

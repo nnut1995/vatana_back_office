@@ -11,7 +11,7 @@ import { auth } from "@/auth";
 export async function requireAuth(): Promise<NextResponse | null> {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
   return null;
 }

@@ -1,0 +1,7 @@
+tunnel: 28c0bc3b-9180-493b-ba7b-b69fa9bd5b25
+credentials-file: /Users/natn/.cloudflared/28c0bc3b-9180-493b-ba7b-b69fa9bd5b25.json
+
+ingress:
+  - hostname: vatana-back-office.nandpmuaythai.com
+    service: http://localhost:3002
+  - service: http_status:404

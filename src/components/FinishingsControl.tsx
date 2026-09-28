@@ -11,6 +11,7 @@ import {
   type FinishingForm,
 } from "@/components/FinishingsEditor";
 import { productImageSrc, type Finishing } from "@/types/order";
+import { thaiDefault } from "@/lib/thai";
 
 function FinishingItem({ finishing }: { finishing: Finishing }) {
   const src = productImageSrc(finishing);
@@ -32,13 +33,13 @@ function FinishingItem({ finishing }: { finishing: Finishing }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
-            alt={finishing.description || "Finishing reference"}
+            alt={thaiDefault(finishing.description) || "ภาพตัวอย่างงานตกแต่ง"}
             style={{ width: "100%", height: "100%", objectFit: "contain" }}
           />
         </Box>
       )}
       <Typography variant="caption" sx={{ pt: src ? 0.5 : 0 }}>
-        {src ? finishing.description : `• ${finishing.description}`}
+        {src ? thaiDefault(finishing.description) : `• ${thaiDefault(finishing.description)}`}
       </Typography>
     </Stack>
   );
@@ -83,13 +84,13 @@ export function FinishingsControl({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Could not save the finishing steps.");
+        setError(data.error ?? "บันทึกรายการงานตกแต่งไม่สำเร็จ");
         return;
       }
       setEditing(false);
       router.refresh();
     } catch {
-      setError("Could not save the finishing steps.");
+      setError("บันทึกรายการงานตกแต่งไม่สำเร็จ");
     } finally {
       setSaving(false);
     }
@@ -98,7 +99,7 @@ export function FinishingsControl({
   return (
     <Stack spacing={1}>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-        Finishing
+        รายละเอียดงานตกแต่ง
       </Typography>
 
       {editing ? (
@@ -106,10 +107,10 @@ export function FinishingsControl({
           <FinishingsEditor value={draft} onChange={setDraft} disabled={saving} />
           <Stack direction="row" spacing={1}>
             <Button size="small" variant="contained" disabled={saving} onClick={save}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? "กำลังบันทึก…" : "บันทึก"}
             </Button>
             <Button size="small" disabled={saving} onClick={() => setEditing(false)}>
-              Cancel
+              ยกเลิก
             </Button>
           </Stack>
         </>
@@ -121,7 +122,7 @@ export function FinishingsControl({
             ))}
             {finishings.length === 0 && (
               <Typography variant="caption" color="text.secondary">
-                None
+                ไม่มีรายการ
               </Typography>
             )}
           </Stack>
@@ -133,7 +134,7 @@ export function FinishingsControl({
               onClick={startEditing}
               sx={{ fontSize: 12, minHeight: 0, py: 0.25 }}
             >
-              Edit
+              แก้ไข
             </Button>
           </Box>
         </>

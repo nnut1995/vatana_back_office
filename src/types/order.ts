@@ -11,12 +11,46 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  new: "New",
-  in_production: "In production",
-  shipped: "Shipped",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  new: "ใหม่",
+  in_production: "กำลังผลิต",
+  shipped: "จัดส่งแล้ว",
+  completed: "เสร็จสมบูรณ์",
+  cancelled: "ยกเลิก",
 };
+
+/** Available production stages. Products may skip departments as needed. */
+export const PRODUCT_STATUSES = [
+  "sample",
+  "wait_for_approval",
+  "fabric_preparation",
+  "printing",
+  "decor",
+  "sewing",
+  "special_work",
+  "finishing",
+  "folding",
+  "packing",
+  "sent",
+] as const;
+
+export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
+
+export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
+  sample: "ทำตัวอย่าง",
+  wait_for_approval: "รออนุมัติ",
+  fabric_preparation: "จัดผ้า",
+  printing: "พิมพ์",
+  decor: "แผนกตกแต่ง",
+  sewing: "เย็บ",
+  special_work: "งานพิเศษอื่น ๆ",
+  finishing: "ตกแต่งขั้นสุดท้าย",
+  folding: "พับ",
+  packing: "บรรจุ",
+  sent: "ส่งแล้ว",
+};
+
+/** Where a SKU starts, and what orders written before statuses fall back to. */
+export const DEFAULT_PRODUCT_STATUS: ProductStatus = "sample";
 
 /** Fixed size columns, matching the production sheet. */
 export const SIZES = ["XS", "S", "M", "L", "XL"] as const;
@@ -25,10 +59,10 @@ export type SizeBreakdown = Record<Size, number>;
 
 /** Default finishing descriptions offered on a new product row. */
 export const DEFAULT_INSTRUCTIONS = [
-  "Print On",
-  "Tag on Size Label",
-  "Stick on T-shirt",
-  "Stick on T-shirt",
+  "พิมพ์ลาย",
+  "ติดป้ายที่ป้ายขนาด",
+  "ติดสติกเกอร์บนเสื้อ",
+  "ติดสติกเกอร์บนเสื้อ",
 ];
 
 /** Anything that can carry a photo: an uploaded key, or an external URL. */
@@ -53,12 +87,21 @@ export interface ColorVariant {
   sizes: SizeBreakdown;
 }
 
-/** One garment style within an order (e.g. MLS1035 "BLUE PRINT"). */
+/** One garment style within an order (e.g. MLS1035 "เช่น ลายพิมพ์สีน้ำเงิน"). */
 export interface OrderProduct extends ImageRef {
+  revision?: number;
+  history?: ProductHistoryEntry[];
   styleCode: string;
   designName: string;
   productType: string;
   material?: string;
+  /**
+   * Where this SKU is in production. Absent on orders written before per-SKU
+   * statuses existed — read via {@link productStatus}, never directly.
+   */
+  status?: ProductStatus;
+  /** Fabric details, techniques, cutting and outsourcing instructions. */
+  productionNotes?: string;
   finishings: Finishing[];
   /**
    * Text-only finishing list used before finishings carried photos. Kept so
@@ -69,10 +112,36 @@ export interface OrderProduct extends ImageRef {
   variants: ColorVariant[];
 }
 
+export interface ProductionQuantities {
+  received: number;
+  sent: number;
+  defective: number;
+}
+
+export interface ProductHistoryEntry {
+  id: string;
+  at: string;
+  actor: string;
+  kind: "production" | "image" | "finishings";
+  from: ProductStatus;
+  to: ProductStatus;
+  before: Partial<Pick<OrderProduct, "status" | "productionNotes" | "imageKey" | "finishings">>;
+  after: Partial<Pick<OrderProduct, "status" | "productionNotes" | "imageKey" | "finishings">>;
+  quantities?: ProductionQuantities;
+  note: string;
+}
+
 /** Where to point an `<img>`, or undefined when there is no photo. */
 export function productImageSrc(ref: ImageRef): string | undefined {
   if (ref.imageKey) return `/api/images/${ref.imageKey}`;
   return ref.imageUrl || undefined;
+}
+
+/** Production stage of a SKU, defaulting orders stored before it existed. */
+export function productStatus(
+  product: Pick<OrderProduct, "status">,
+): ProductStatus {
+  return product.status ?? DEFAULT_PRODUCT_STATUS;
 }
 
 /** Finishings of a product, upgrading orders stored before they had photos. */
@@ -117,6 +186,7 @@ export interface CreateOrderInput {
     designName: string;
     productType?: string;
     material?: string;
+    status?: ProductStatus;
     finishings?: Finishing[];
     imageKey?: string;
     imageUrl?: string;

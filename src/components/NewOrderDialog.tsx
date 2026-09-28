@@ -53,7 +53,7 @@ const emptyVariant = (): VariantForm => ({ color: "", sizes: emptySizes() });
 const emptyProduct = (): ProductForm => ({
   styleCode: "",
   designName: "",
-  productType: "ADULTS UNISEX T-SHIRT",
+  productType: "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์",
   material: "",
   finishings: DEFAULT_INSTRUCTIONS.map((d) => emptyFinishing(d)),
   imageKey: null,
@@ -123,7 +123,7 @@ export function NewOrderDialog() {
   async function handleSubmit() {
     setError(null);
     if (!title.trim()) {
-      setError("Order title is required.");
+      setError("กรุณาระบุชื่อคำสั่งซื้อ");
       return;
     }
 
@@ -132,7 +132,7 @@ export function NewOrderDialog() {
       .map((p) => ({
         styleCode: p.styleCode.trim(),
         designName: p.designName.trim(),
-        productType: p.productType.trim() || "ADULTS UNISEX T-SHIRT",
+        productType: p.productType.trim() || "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์",
         material: p.material.trim() || undefined,
         finishings: p.finishings
           .map(fromFinishingForm)
@@ -151,7 +151,7 @@ export function NewOrderDialog() {
       .filter((p) => p.variants.length > 0);
 
     if (payloadProducts.length === 0) {
-      setError("Add at least one product with a style code, design name and colour.");
+      setError("กรุณาเพิ่มสินค้าอย่างน้อยหนึ่งรายการ พร้อมรหัสสินค้า ชื่อลาย และสี");
       return;
     }
 
@@ -172,7 +172,7 @@ export function NewOrderDialog() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Failed to create order.");
+        setError(data.error ?? "สร้างคำสั่งซื้อไม่สำเร็จ");
         return;
       }
       const data = await res.json();
@@ -187,7 +187,7 @@ export function NewOrderDialog() {
   return (
     <>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
-        New order
+        สร้างคำสั่งซื้อ
       </Button>
 
       <Dialog
@@ -197,7 +197,7 @@ export function NewOrderDialog() {
         fullWidth
         scroll="paper"
       >
-        <DialogTitle>New production order</DialogTitle>
+        <DialogTitle>สร้างคำสั่งผลิต</DialogTitle>
         <DialogContent dividers>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -208,22 +208,22 @@ export function NewOrderDialog() {
           {/* Order header */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
             <TextField
-              label="Order title"
-              placeholder="MICKEY SINGAPORE RACER - ADULTS"
+              label="ชื่อคำสั่งซื้อ"
+              placeholder="เช่น เสื้อทีมแข่ง รุ่นผู้ใหญ่"
               fullWidth
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <TextField
-              label="Reference"
-              placeholder="auto if blank"
+              label="เลขที่อ้างอิง"
+              placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ"
               sx={{ minWidth: 180 }}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
             />
             <TextField
-              label="Order date"
+              label="วันที่สั่งซื้อ"
               type="date"
               sx={{ minWidth: 170 }}
               value={orderDate}
@@ -233,16 +233,17 @@ export function NewOrderDialog() {
 
           {/* Products */}
           <Typography variant="subtitle2" gutterBottom>
-            Products
+            สินค้า
           </Typography>
           <Stack spacing={2}>
             {products.map((product, pi) => (
               <Paper key={pi} variant="outlined" sx={{ p: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Product {pi + 1}
+                    สินค้า {pi + 1}
                   </Typography>
                   <IconButton
+                    aria-label={`ลบสินค้าที่ ${pi + 1}`}
                     size="small"
                     disabled={products.length === 1}
                     onClick={() =>
@@ -260,7 +261,7 @@ export function NewOrderDialog() {
                 >
                   <ProductImageUpload
                     imageKey={product.imageKey}
-                    alt={product.designName || `Product ${pi + 1}`}
+                    alt={product.designName || `สินค้า ${pi + 1}`}
                     onChange={(key) => patchProduct(pi, { imageKey: key })}
                   />
                   <Box sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
@@ -270,7 +271,7 @@ export function NewOrderDialog() {
                       sx={{ mb: 1.5 }}
                     >
                       <TextField
-                        label="Style code"
+                        label="รหัสสินค้า"
                         placeholder="MLS1035"
                         size="small"
                         sx={{ flex: 1 }}
@@ -278,15 +279,15 @@ export function NewOrderDialog() {
                         onChange={(e) => patchProduct(pi, { styleCode: e.target.value })}
                       />
                       <TextField
-                        label="Design name"
-                        placeholder="BLUE PRINT"
+                        label="ชื่อลาย"
+                        placeholder="เช่น ลายพิมพ์สีน้ำเงิน"
                         size="small"
                         sx={{ flex: 2 }}
                         value={product.designName}
                         onChange={(e) => patchProduct(pi, { designName: e.target.value })}
                       />
                       <TextField
-                        label="Material"
+                        label="วัสดุ"
                         placeholder="TPU"
                         size="small"
                         sx={{ flex: 1 }}
@@ -295,7 +296,7 @@ export function NewOrderDialog() {
                       />
                     </Stack>
                     <TextField
-                      label="Product type"
+                      label="ประเภทสินค้า"
                       size="small"
                       fullWidth
                       value={product.productType}
@@ -314,8 +315,8 @@ export function NewOrderDialog() {
                       sx={{ alignItems: "center" }}
                     >
                       <TextField
-                        label="Colour"
-                        placeholder="NAVY"
+                        label="สี"
+                        placeholder="กรมท่า"
                         size="small"
                         sx={{ width: 120 }}
                         value={variant.color}
@@ -335,13 +336,14 @@ export function NewOrderDialog() {
                       ))}
                       <Box sx={{ width: 64, textAlign: "right" }}>
                         <Typography variant="caption" color="text.secondary">
-                          TOTAL
+                          รวม
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
                           {formatNumber(variantTotalOf(variant))}
                         </Typography>
                       </Box>
                       <IconButton
+                        aria-label={`ลบสีที่ ${vi + 1} ของสินค้าที่ ${pi + 1}`}
                         size="small"
                         disabled={product.variants.length === 1}
                         onClick={() =>
@@ -363,11 +365,11 @@ export function NewOrderDialog() {
                     patchProduct(pi, { variants: [...product.variants, emptyVariant()] })
                   }
                 >
-                  Add colour
+                  เพิ่มสี
                 </Button>
 
                 <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                  Finishing
+                  รายละเอียดงานตกแต่ง
                 </Typography>
                 <FinishingsEditor
                   value={product.finishings}
@@ -381,12 +383,12 @@ export function NewOrderDialog() {
             sx={{ mt: 1.5 }}
             onClick={() => setProducts((prev) => [...prev, emptyProduct()])}
           >
-            Add product
+            เพิ่มสินค้า
           </Button>
 
           <Divider sx={{ my: 2 }} />
           <TextField
-            label="Order notes (optional)"
+            label="หมายเหตุคำสั่งซื้อ (ไม่บังคับ)"
             fullWidth
             multiline
             minRows={2}
@@ -395,17 +397,17 @@ export function NewOrderDialog() {
           />
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, alignItems: "baseline", mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Grand total
+              รวมทั้งหมด
             </Typography>
-            <Typography variant="h6">{formatNumber(grandTotal)} pcs</Typography>
+            <Typography variant="h6">{formatNumber(grandTotal)} ชิ้น</Typography>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)} disabled={saving}>
-            Cancel
+            ยกเลิก
           </Button>
           <Button variant="contained" onClick={handleSubmit} disabled={saving}>
-            {saving ? "Creating…" : "Create order"}
+            {saving ? "กำลังสร้าง…" : "สร้างคำสั่งซื้อ"}
           </Button>
         </DialogActions>
       </Dialog>

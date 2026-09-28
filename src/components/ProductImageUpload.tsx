@@ -50,7 +50,7 @@ export function ProductImageUpload({
   imageKey,
   onChange,
   fallbackSrc,
-  alt = "Product photo",
+  alt = "รูปสินค้า",
   size = 120,
   disabled = false,
   compact = false,
@@ -70,7 +70,7 @@ export function ProductImageUpload({
   async function upload(file: File) {
     setError(null);
     if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file.");
+      setError("กรุณาเลือกไฟล์รูปภาพ");
       return;
     }
 
@@ -81,13 +81,13 @@ export function ProductImageUpload({
       const res = await fetch("/api/uploads", { method: "POST", body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Upload failed.");
+        setError(data.error ?? "อัปโหลดไม่สำเร็จ");
         return;
       }
       setResult(data as UploadResult);
       await onChange(data.key);
     } catch {
-      setError("Upload failed. Check your connection and try again.");
+      setError("อัปโหลดไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง");
     } finally {
       setBusy(false);
     }
@@ -152,7 +152,7 @@ export function ProductImageUpload({
             <AddPhotoAlternateOutlinedIcon fontSize="small" />
             {!compact && (
               <Typography variant="caption" align="center" sx={{ lineHeight: 1.3, mt: 0.5 }}>
-                Click or drop
+                คลิกหรือลากรูปมาวาง
               </Typography>
             )}
           </Stack>
@@ -165,7 +165,7 @@ export function ProductImageUpload({
         {compact && src && !locked && (
           <IconButton
             size="small"
-            aria-label="Remove photo"
+            aria-label="ลบรูปภาพ"
             onClick={(e) => {
               e.stopPropagation();
               void remove();
@@ -208,7 +208,7 @@ export function ProductImageUpload({
           onClick={remove}
           sx={{ fontSize: 12, minHeight: 0, py: 0.25 }}
         >
-          Remove
+          ลบ
         </Button>
       )}
 
@@ -220,7 +220,7 @@ export function ProductImageUpload({
         result &&
         !compact && (
           <Typography variant="caption" color="text.secondary" align="center">
-            {result.width}×{result.height} · {formatNumber(Math.round(result.bytes / 1024))} KB
+            {result.width}×{result.height} · {formatNumber(Math.round(result.bytes / 1024))} กิโลไบต์
           </Typography>
         )
       )}

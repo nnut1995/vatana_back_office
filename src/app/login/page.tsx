@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     setLoading(false);
     if (res?.error) {
-      setError("Invalid email or password.");
+      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       return;
     }
     router.push("/");
@@ -57,10 +57,10 @@ export default function LoginPage() {
             <LockOutlinedIcon />
           </Avatar>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            Vatana Back Office
+            ระบบหลังบ้าน Vatana
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Sign in to continue
+            เข้าสู่ระบบเพื่อใช้งาน
           </Typography>
 
           {error && (
@@ -71,7 +71,7 @@ export default function LoginPage() {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             <TextField
-              label="Email"
+              label="อีเมล"
               type="email"
               fullWidth
               required
@@ -80,7 +80,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
-              label="Password"
+              label="รหัสผ่าน"
               type="password"
               fullWidth
               required
@@ -96,12 +96,12 @@ export default function LoginPage() {
               disabled={loading}
               sx={{ mt: 3 }}
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
             </Button>
           </Box>
         </Paper>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mt: 2 }}>
-          Default seed: admin@vatana.local / admin123
+          บัญชีเริ่มต้น: admin@vatana.local / admin123
         </Typography>
       </Container>
     </Box>

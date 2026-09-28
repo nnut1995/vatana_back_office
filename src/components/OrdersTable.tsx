@@ -23,11 +23,11 @@ export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Order</TableCell>
-            <TableCell>Order date</TableCell>
-            <TableCell align="right">Products</TableCell>
-            <TableCell align="right">Total pieces</TableCell>
-            <TableCell>Status</TableCell>
+            <TableCell>คำสั่งซื้อ</TableCell>
+            <TableCell>วันที่สั่งซื้อ</TableCell>
+            <TableCell align="right">สินค้า</TableCell>
+            <TableCell align="right">จำนวนชิ้นทั้งหมด</TableCell>
+            <TableCell>สถานะ</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Box, Button, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getOrder } from "@/lib/orders";
+import { OrderProductStages } from "@/components/OrderProductStages";
 import { OrderProductionSheet } from "@/components/OrderProductionSheet";
 import { OrderStatusControl } from "@/components/OrderStatusControl";
 import { formatDateISO, formatNumber } from "@/lib/format";
@@ -23,7 +24,7 @@ export default async function OrderDetailPage({
   return (
     <Box sx={{ p: 4 }}>
       <Button href="/orders" startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2 }}>
-        All orders
+        คำสั่งซื้อทั้งหมด
       </Button>
 
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -38,7 +39,7 @@ export default async function OrderDetailPage({
         >
           <Box>
             <Typography variant="overline" color="text.secondary">
-              New order: {formatDateISO(order.orderDate)}
+              วันที่สั่งซื้อ: {formatDateISO(order.orderDate)}
             </Typography>
             <Typography variant="h4">{order.title}</Typography>
             <Typography
@@ -57,19 +58,19 @@ export default async function OrderDetailPage({
         <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap" }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Products
+              สินค้า
             </Typography>
             <Typography variant="h6">{order.products.length}</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Total pieces
+              จำนวนชิ้นทั้งหมด
             </Typography>
             <Typography variant="h6">{formatNumber(totalPieces)}</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Colour variants
+              จำนวนสี
             </Typography>
             <Typography variant="h6">
               {formatNumber(
@@ -82,7 +83,7 @@ export default async function OrderDetailPage({
         {order.notes && (
           <>
             <Divider sx={{ my: 2 }} />
-            <Chip label="Notes" size="small" sx={{ mr: 1 }} />
+            <Chip label="หมายเหตุ" size="small" sx={{ mr: 1 }} />
             <Typography variant="body2" component="span" color="text.secondary">
               {order.notes}
             </Typography>
@@ -90,6 +91,7 @@ export default async function OrderDetailPage({
         )}
       </Paper>
 
+      <OrderProductStages products={order.products} />
       <OrderProductionSheet order={order} />
     </Box>
   );

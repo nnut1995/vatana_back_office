@@ -35,25 +35,24 @@ export default async function DashboardPage() {
     orders.filter((o) => o.status === status).length;
 
   const stats = [
-    { label: "Total orders", value: formatNumber(orders.length) },
-    { label: "Total pieces", value: formatNumber(totalPieces) },
-    { label: "New", value: formatNumber(countFor("new")) },
-    { label: "In production", value: formatNumber(countFor("in_production")) },
+    { label: "คำสั่งซื้อทั้งหมด", value: formatNumber(orders.length) },
+    { label: "จำนวนชิ้นทั้งหมด", value: formatNumber(totalPieces) },
+    { label: "ใหม่", value: formatNumber(countFor("new")) },
+    { label: "กำลังผลิต", value: formatNumber(countFor("in_production")) },
   ];
 
   return (
     <Box sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom>
-        Dashboard
+        ภาพรวม
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Overview of production orders
+        ภาพรวมคำสั่งผลิต
       </Typography>
 
       {dbError && (
         <Alert severity="warning" sx={{ mb: 3 }}>
-          Could not reach the database. Make sure MongoDB is running on{" "}
-          <code>localhost:27017</code>.
+          ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ
         </Alert>
       )}
 
@@ -82,9 +81,9 @@ export default async function DashboardPage() {
       <Card>
         <CardContent>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-            <Typography variant="h6">Orders by status</Typography>
+            <Typography variant="h6">คำสั่งซื้อแยกตามสถานะ</Typography>
             <Button href="/orders" size="small">
-              View all orders
+              ดูคำสั่งซื้อทั้งหมด
             </Button>
           </Box>
           <Stack spacing={1.5}>

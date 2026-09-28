@@ -4,10 +4,11 @@ const nextBin = path.join(__dirname, "node_modules", "next", "dist", "bin", "nex
 
 /**
  * pm2 process definitions for running the back office locally as long-lived
- * services. Two independent apps, safe to run at the same time:
+ * services. Three independent apps, safe to run at the same time:
  *
  *   vatana-back-office      :3002  `next start` — production build, build first
  *   vatana-back-office-dev  :3003  `next dev`   — auto-reloads on save (HMR)
+ *   vatana-back-office-tunnel      cloudflared  — publishes :3002 to the internet
  *
  * Separate ports, and separate build output too (dev writes to `.next/dev`,
  * production to `.next`), so neither clobbers the other.
@@ -64,6 +65,30 @@ module.exports = {
       },
       out_file: path.join(__dirname, ".pm2", "dev-out.log"),
       error_file: path.join(__dirname, ".pm2", "dev-error.log"),
+      merge_logs: true,
+      time: true,
+    },
+    {
+      // Cloudflare Tunnel: serves vatana-back-office.nandpmuaythai.com from the
+      // production app on :3002. Outbound-only — no port forwarding, no inbound
+      // firewall rule. Ingress rules live in cloudflared-back-office.yml; the
+      // tunnel credentials it points at are in ~/.cloudflared (never committed).
+      //
+      // Deliberately aimed at :3002 (`next start`) and not the :3003 dev server:
+      // this hostname is public, and the dev server is unbuilt and unhardened.
+      name: "vatana-back-office-tunnel",
+      cwd: __dirname,
+      script: "/opt/homebrew/bin/cloudflared",
+      args: "tunnel --config cloudflared-back-office.yml run",
+      exec_mode: "fork",
+      instances: 1,
+      autorestart: true,
+      // cloudflared reconnects on its own; back off so a Cloudflare-side outage
+      // doesn't turn into a tight pm2 restart loop.
+      restart_delay: 5000,
+      max_memory_restart: "256M",
+      out_file: path.join(__dirname, ".pm2", "tunnel-out.log"),
+      error_file: path.join(__dirname, ".pm2", "tunnel-error.log"),
       merge_logs: true,
       time: true,
     },

@@ -21,7 +21,7 @@ export async function GET(
   const key = segments.join("/");
 
   if (!isProductImageKey(key)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "ไม่พบข้อมูล" }, { status: 404 });
   }
 
   try {
@@ -29,7 +29,7 @@ export async function GET(
       new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
     );
     if (!object.Body) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "ไม่พบข้อมูล" }, { status: 404 });
     }
 
     return new Response(object.Body.transformToWebStream(), {
@@ -44,9 +44,9 @@ export async function GET(
     });
   } catch (error) {
     if (error instanceof NoSuchKey) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "ไม่พบข้อมูล" }, { status: 404 });
     }
     console.error(`GET /api/images/${key} failed:`, error);
-    return NextResponse.json({ error: "Failed to load image" }, { status: 500 });
+    return NextResponse.json({ error: "โหลดรูปภาพไม่สำเร็จ" }, { status: 500 });
   }
 }

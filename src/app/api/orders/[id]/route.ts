@@ -13,7 +13,7 @@ export async function GET(
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return NextResponse.json({ error: "ไม่พบคำสั่งซื้อ" }, { status: 404 });
   }
   return NextResponse.json({ order });
 }
@@ -30,19 +30,19 @@ export async function PATCH(
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง" }, { status: 400 });
   }
 
   if (!body.status || !ORDER_STATUSES.includes(body.status as OrderStatus)) {
     return NextResponse.json(
-      { error: `status must be one of: ${ORDER_STATUSES.join(", ")}` },
+      { error: "กรุณาเลือกสถานะที่รองรับ" },
       { status: 400 },
     );
   }
 
   const updated = await updateOrderStatus(id, body.status as OrderStatus);
   if (!updated) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return NextResponse.json({ error: "ไม่พบคำสั่งซื้อ" }, { status: 404 });
   }
   return NextResponse.json({ success: true });
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { updateProductImage } from "@/lib/orders";
-import { deleteProductImage, isProductImageKey } from "@/lib/s3";
+import { isProductImageKey } from "@/lib/s3";
 
 /**
  * Set or clear the photo of one product inside an existing order.
@@ -24,26 +24,23 @@ export async function PATCH(
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง" }, { status: 400 });
   }
 
   const imageKey = body.imageKey ?? null;
   if (imageKey !== null && !isProductImageKey(imageKey)) {
     return NextResponse.json(
-      { error: "imageKey must be an uploaded product image key, or null" },
+      { error: "กรุณาเลือกรูปสินค้าที่อัปโหลดแล้ว หรือลบรูปภาพ" },
       { status: 400 },
     );
   }
 
   const result = await updateProductImage(id, Number(index), imageKey);
   if (!result.ok) {
-    return NextResponse.json({ error: "Order or product not found" }, { status: 404 });
+    return NextResponse.json({ error: "ไม่พบคำสั่งซื้อหรือสินค้า" }, { status: 404 });
   }
 
-  // The replaced photo is now unreferenced — clean it out of the bucket.
-  if (result.previousKey && result.previousKey !== imageKey) {
-    await deleteProductImage(result.previousKey);
-  }
+  // Retain prior photos: the append-only history still references them.
 
   return NextResponse.json({ success: true, imageKey });
 }

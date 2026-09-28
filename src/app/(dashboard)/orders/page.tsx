@@ -25,9 +25,9 @@ export default async function OrdersPage() {
         }}
       >
         <Box>
-          <Typography variant="h4">Orders</Typography>
+          <Typography variant="h4">คำสั่งซื้อ</Typography>
           <Typography variant="body2" color="text.secondary">
-            {orders.length} order{orders.length === 1 ? "" : "s"}
+            {orders.length} รายการ
           </Typography>
         </Box>
         <NewOrderDialog />
@@ -35,13 +35,12 @@ export default async function OrdersPage() {
 
       {dbError ? (
         <Alert severity="warning">
-          Could not reach the database. Make sure MongoDB is running on{" "}
-          <code>localhost:27017</code>.
+          ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ
         </Alert>
       ) : orders.length === 0 ? (
         <Paper sx={{ p: 6, textAlign: "center", borderStyle: "dashed" }}>
           <Typography color="text.secondary">
-            No orders yet. Click <strong>New order</strong> to create one.
+            ยังไม่มีคำสั่งซื้อ คลิก <strong>สร้างคำสั่งซื้อ</strong> เพื่อเริ่มต้น
           </Typography>
         </Paper>
       ) : (

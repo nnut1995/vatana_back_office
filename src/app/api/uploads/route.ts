@@ -25,24 +25,24 @@ export async function POST(request: Request) {
     form = await request.formData();
   } catch {
     return NextResponse.json(
-      { error: "Expected multipart/form-data with a 'file' field" },
+      { error: "กรุณาส่งไฟล์รูปภาพในรูปแบบที่รองรับ" },
       { status: 400 },
     );
   }
 
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    return NextResponse.json({ error: "กรุณาเลือกไฟล์ที่จะอัปโหลด" }, { status: 400 });
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     return NextResponse.json(
-      { error: `Image is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB` },
+      { error: `รูปภาพต้องมีขนาดไม่เกิน ${MAX_UPLOAD_BYTES / 1024 / 1024} เมกะไบต์` },
       { status: 413 },
     );
   }
   if (file.type && !ACCEPTED_MIME_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: `Unsupported image type: ${file.type}` },
+      { error: `ไม่รองรับรูปภาพชนิดนี้: ${file.type}` },
       { status: 415 },
     );
   }
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   } catch {
     // sharp throws on anything it cannot decode — i.e. not really an image.
     return NextResponse.json(
-      { error: "That file could not be read as an image" },
+      { error: "ไม่สามารถอ่านไฟล์นี้เป็นรูปภาพได้" },
       { status: 400 },
     );
   }
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("POST /api/uploads failed to store object:", error);
-    return NextResponse.json({ error: "Failed to store image" }, { status: 500 });
+    return NextResponse.json({ error: "บันทึกรูปภาพไม่สำเร็จ" }, { status: 500 });
   }
 
   return NextResponse.json(

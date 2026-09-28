@@ -23,12 +23,15 @@ import {
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { PRODUCT_STATUSES, PRODUCT_STATUS_LABELS } from "@/types/order";
 
 const DRAWER_WIDTH = 232;
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: <DashboardIcon /> },
-  { href: "/orders", label: "Orders", icon: <ReceiptLongIcon /> },
+  { href: "/production-report", label: "ผลงานรายแผนก", icon: <DashboardIcon /> },
+  { href: "/", label: "ภาพรวม", icon: <DashboardIcon /> },
+  { href: "/orders", label: "คำสั่งซื้อ", icon: <ReceiptLongIcon /> },
+  { href: "/departments", label: "งานรายแผนก", icon: <DashboardIcon /> },
 ];
 
 export function AppShell({
@@ -66,7 +69,7 @@ export function AppShell({
           <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
             {user.name ?? user.email}
           </Typography>
-          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small">
+          <IconButton aria-label="เมนูบัญชีผู้ใช้" onClick={(e) => setAnchorEl(e.currentTarget)} size="small">
             <Avatar sx={{ width: 32, height: 32 }}>
               {(user.name ?? user.email ?? "?").charAt(0).toUpperCase()}
             </Avatar>
@@ -80,7 +83,7 @@ export function AppShell({
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              Sign out
+              ออกจากระบบ
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -114,9 +117,18 @@ export function AppShell({
             );
           })}
         </List>
+        <Divider />
+        <Typography variant="overline" sx={{ px: 3, pt: 1 }}>แผนก / ขั้นตอนผลิต</Typography>
+        <List dense sx={{ px: 1 }}>
+          {PRODUCT_STATUSES.map(stage => (
+            <ListItemButton key={stage} component={Link} href={`/departments/${stage}`} selected={pathname === `/departments/${stage}`} sx={{ borderRadius: 2 }}>
+              <ListItemText primary={PRODUCT_STATUS_LABELS[stage]} />
+            </ListItemButton>
+          ))}
+        </List>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, bgcolor: "background.default" }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: "background.default" }}>
         <Toolbar />
         {children}
       </Box>

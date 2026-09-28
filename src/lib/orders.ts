@@ -1,12 +1,16 @@
-import { ObjectId, type Collection, type UpdateFilter } from "mongodb";
+import { ObjectId, type Collection } from "mongodb";
+import { auth } from "@/auth";
+import { recordProductChange } from "@/lib/product-history";
+import type { ProductionQuantities } from "@/types/order";
 import { getDb } from "@/lib/mongodb";
 import {
   SIZES,
-  productFinishings,
+  DEFAULT_PRODUCT_STATUS,
   type Order,
   type SerializedOrder,
   type CreateOrderInput,
   type OrderStatus,
+  type ProductStatus,
   type SizeBreakdown,
   type ColorVariant,
   type Finishing,
@@ -74,8 +78,9 @@ export async function createOrder(input: CreateOrderInput): Promise<SerializedOr
   const products = input.products.map((p) => ({
     styleCode: p.styleCode.trim(),
     designName: p.designName.trim(),
-    productType: (p.productType || "ADULTS UNISEX T-SHIRT").trim(),
+    productType: (p.productType || "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์").trim(),
     material: p.material?.trim() || undefined,
+    status: p.status ?? DEFAULT_PRODUCT_STATUS,
     finishings: normalizeFinishings(p.finishings),
     imageKey: p.imageKey?.trim() || undefined,
     imageUrl: p.imageUrl?.trim() || undefined,
@@ -104,74 +109,33 @@ export async function createOrder(input: CreateOrderInput): Promise<SerializedOr
   return serializeOrder({ ...order, _id: result.insertedId } as Order);
 }
 
-/**
- * Set (or clear, with `imageKey: null`) the photo of one product within an
- * order, addressed by its position in the products array.
- *
- * Returns the key that was previously stored so the caller can delete the
- * now-orphaned object from S3.
- */
-export async function updateProductImage(
-  id: string,
-  index: number,
-  imageKey: string | null,
-): Promise<{ ok: boolean; previousKey?: string }> {
-  if (!ObjectId.isValid(id) || !Number.isInteger(index) || index < 0) {
-    return { ok: false };
-  }
-
-  const collection = await ordersCollection();
-  const _id = new ObjectId(id);
-  const order = await collection.findOne({ _id }, { projection: { products: 1 } });
-  if (!order || index >= order.products.length) return { ok: false };
-
-  const field = `products.${index}.imageKey`;
-  const update = (
-    imageKey
-      ? { $set: { [field]: imageKey, updatedAt: new Date() } }
-      : { $unset: { [field]: "" }, $set: { updatedAt: new Date() } }
-  ) as UpdateFilter<Order>;
-
-  await collection.updateOne({ _id }, update);
-  return { ok: true, previousKey: order.products[index].imageKey };
+async function auditActor(): Promise<string> {
+  const session = await auth();
+  if (!session?.user) throw new Error("กรุณาเข้าสู่ระบบ");
+  return session.user.email || session.user.name || "ผู้ใช้ที่เข้าสู่ระบบ";
 }
 
-/**
- * Replace the finishing list of one product within an order, addressed by its
- * position in the products array.
- *
- * Returns the photo keys the product used to reference and no longer does, so
- * the caller can delete the now-orphaned objects from S3.
- */
-export async function updateProductFinishings(
-  id: string,
-  index: number,
-  finishings: Finishing[],
-): Promise<{ ok: boolean; orphanedKeys: string[] }> {
-  if (!ObjectId.isValid(id) || !Number.isInteger(index) || index < 0) {
-    return { ok: false, orphanedKeys: [] };
-  }
+export async function updateProductImage(id: string, index: number, imageKey: string | null) {
+  const ok = await recordProductChange(await ordersCollection(), id, index,
+    await auditActor(), "image", { imageKey: imageKey ?? "" });
+  return { ok };
+}
 
-  const collection = await ordersCollection();
-  const _id = new ObjectId(id);
-  const order = await collection.findOne({ _id }, { projection: { products: 1 } });
-  if (!order || index >= order.products.length) {
-    return { ok: false, orphanedKeys: [] };
-  }
+export async function updateProductFinishings(id: string, index: number, finishings: Finishing[]) {
+  const ok = await recordProductChange(await ordersCollection(), id, index,
+    await auditActor(), "finishings", { finishings: normalizeFinishings(finishings) });
+  return { ok };
+}
 
-  const next = normalizeFinishings(finishings);
-  const keptKeys = new Set(next.map((f) => f.imageKey).filter(Boolean));
-  const orphanedKeys = productFinishings(order.products[index])
-    .map((f) => f.imageKey)
-    .filter((key): key is string => Boolean(key) && !keptKeys.has(key));
-
-  await collection.updateOne({ _id }, {
-    $set: { [`products.${index}.finishings`]: next, updatedAt: new Date() },
-    // The legacy text-only list is superseded once finishings are written.
-    $unset: { [`products.${index}.instructions`]: "" },
-  } as UpdateFilter<Order>);
-
-  return { ok: true, orphanedKeys };
+export async function updateProductStatus(
+  id: string, index: number, status: ProductStatus, productionNotes?: string,
+  quantities?: ProductionQuantities, note = "", requestId?: string,
+): Promise<boolean> {
+  return recordProductChange(await ordersCollection(), id, index, await auditActor(),
+    "production", {
+      status,
+      ...(productionNotes !== undefined ? { productionNotes: productionNotes.trim() } : {}),
+    }, quantities, note.trim(), requestId);
 }
 
 export async function updateOrderStatus(

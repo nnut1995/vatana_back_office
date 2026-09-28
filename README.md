@@ -88,7 +88,8 @@ Notes:
 Orders are **garment production orders** (modelled on the MICKEY SINGAPORE RACER sheet), not sales invoices:
 
 - **Order header** — title, reference, order date, status.
-- **Products** — each has a style code (`MLS1035`), design name (`BLUE PRINT`), product type (`ADULTS UNISEX T-SHIRT`), optional material (`TPU`), and finishing instructions.
+- **Products** — each has a style code (`MLS1035`), design name (`BLUE PRINT`), product type (`ADULTS UNISEX T-SHIRT`), optional material (`TPU`), finishing instructions, and its own production stage.
+- **SKU stage** — every product tracks where it is on the floor: Sample → Wait for approval → Printing → Decor → Packing → Sent. New products start at Sample; orders written before stages existed read as Sample.
 - **Colour variants** — each product has one or more colours (e.g. SPONSORSHIP = WHITE + BLACK), each with a per-size quantity breakdown across `XS / S / M / L / XL` and an auto-computed row total.
 - **Totals** — piece totals roll up per variant → per product → per order.
 
@@ -99,7 +100,7 @@ There is no pricing or customer field — it's a production spec. The seed inser
 - **Authentication** — email/password login; every page is gated by `src/proxy.ts`, and the order API routes are guarded server-side. Sign out from the top-right avatar menu.
 - **Dashboard** — order counts, total pieces, and a status breakdown.
 - **Orders list** — MUI table (title, order date, product count, total pieces) with inline status editing; click a row to open the order.
-- **Order detail** — a production sheet that mirrors the reference PDF: each product with its image slot, size grid, colour rows, totals and finishing notes.
+- **Order detail** — a production sheet that mirrors the reference PDF: each product with its image slot, size grid, colour rows, totals and finishing notes, plus an inline stage picker per SKU.
 - **New order dialog** — build an order with repeatable products and colour variants, with live per-variant and grand totals.
 - **Product photos** — click-or-drop a photo on any product, in the new-order dialog or straight onto a saved order's production sheet. See below.
 
@@ -156,9 +157,11 @@ src/
       orders/route.ts      # GET (list) / POST (create) — auth-guarded
       orders/[id]/route.ts # GET / PATCH (status) — auth-guarded
       orders/[id]/products/[index]/image/  # PATCH — set/clear a product photo
+      orders/[id]/products/[index]/status/ # PATCH — move one SKU's stage
   components/              # AppShell, OrdersTable, OrderProductionSheet,
                            # NewOrderDialog, OrderStatusControl, OrderStatusBadge,
-                           # ProductImageUpload, ProductImageControl
+                           # ProductStatusControl, ProductImageUpload,
+                           # ProductImageControl
   lib/                    # mongodb, orders, users, api-auth, format, s3, images
   types/                  # order (products/variants/sizes), user, next-auth
 scripts/seed.ts           # Admin user + MICKEY SINGAPORE RACER sample order
@@ -177,6 +180,7 @@ ecosystem.config.cjs      # pm2 process definition (local, port 3002)
 | POST   | `/api/uploads`    | yes  | Upload + optimise a product photo  |
 | GET    | `/api/images/*`   | yes  | Stream a stored photo from S3      |
 | PATCH  | `/api/orders/:id/products/:index/image` | yes | Set/clear a product's photo |
+| PATCH  | `/api/orders/:id/products/:index/status` | yes | Move one SKU to another production stage |
 
 Create an order:
 
@@ -230,3 +234,11 @@ Both routes require a session cookie — they return `401` otherwise.
 > Photo uploads run on the Node.js runtime (`sharp` is a native module) and are
 > well inside Vercel's 100 MB request-body limit — the app caps raw uploads at
 > 15 MB anyway.
+
+### ประวัติการผลิตราย SKU
+
+- ปุ่ม **บันทึกการผลิต / เปลี่ยนขั้นตอน** บันทึกสถานะ หมายเหตุ และจำนวนรับเข้า/ส่งออก/เสียของแผนกที่เลือก จำนวนที่เหลือแสดงเป็นงานค้างของรายการนั้น ยอดสั่งซื้อตามสีและขนาดไม่เปลี่ยน
+- **ประวัติทั้งหมด** แสดงเวลา ผู้บันทึก ค่าเดิม/ค่าใหม่ และเหตุผล ทุกการเปลี่ยนขั้นตอน หมายเหตุ รูปสินค้า และงานตกแต่งจะเพิ่มประวัติ โดยไม่มีการแก้ไขหรือลบประวัติผ่านเว็บไซต์ เริ่มเก็บตั้งแต่ใช้ฟีเจอร์นี้ (ไม่สามารถสร้างประวัติก่อนหน้านี้ขึ้นใหม่ได้)
+- รูปภาพเดิมที่อยู่ในประวัติจะถูกเก็บไว้ การแก้รายการที่ลงผิดให้เพิ่มรายการใหม่พร้อมอ้างอิงเลขรายการเดิม จำนวนในแต่ละแผนกไม่ควรนำมารวมข้ามแผนกเป็นยอดสินค้า
+- State changes and audit entries use one atomic MongoDB update with a per-product revision for concurrent edits. Production submissions carry a retry ID to avoid duplicate logs. History is appended without trimming; monitor MongoDB document size for very long-lived orders (16 MiB document limit).
+- Integration checks use a uniquely named temporary test collection: `node --env-file=.env.local --import tsx --test tests/product-history.test.ts`.
