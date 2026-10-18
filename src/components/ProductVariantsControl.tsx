@@ -8,10 +8,12 @@ import { useRouter } from 'next/navigation';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import {  type ColorVariant } from '@/types/order';
 import { parseVariants } from '@/lib/product-variants';
+import { useFeedback } from "@/components/Feedback";
 type Row = { color: string; colorId?: string; sizes: Record<(typeof ALL_SIZES)[number], string> };
 const blank = (): Row => ({ color: '', sizes: { XS: '0', S: '0', M: '0', L: '0', XL: '0', XXL: '0' } });
 export function ProductVariantsControl({ orderId, index, variants, productType }: { productType: string; orderId: string; index: number; variants: ColorVariant[] }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
@@ -29,7 +31,7 @@ export function ProductVariantsControl({ orderId, index, variants, productType }
       const response = await fetch(`/api/orders/${orderId}/products/${index}/variants`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants: data, requestId: requestId.current }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'บันทึกไม่สำเร็จ');
-      setOpen(false); router.refresh();
+      setOpen(false); notify("บันทึกสีและจำนวนแล้ว"); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ'); } finally { setSaving(false); }
   }
   return <>

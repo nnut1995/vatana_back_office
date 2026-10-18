@@ -6,11 +6,13 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack
 import { ProductTypeBadge } from "@/components/ProductTypeBadge";
 import { ProductTypeField } from "@/components/ProductTypeField";
 import { parseProductType } from "@/lib/product-type";
+import { useFeedback } from "@/components/Feedback";
 
 export function ProductTypeControl({ productType, orderId, index, readOnly = false, legacyType, needsCanonical = false }: {
   productType: string; orderId: string; index: number; readOnly?: boolean; legacyType?: string; needsCanonical?: boolean;
 }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,7 +31,7 @@ export function ProductTypeControl({ productType, orderId, index, readOnly = fal
         const data = await response.json().catch(() => ({}));
         setError(data.error || "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); return;
       }
-      setOpen(false); router.refresh();
+      setOpen(false); notify("บันทึกประเภทเสื้อแล้ว"); router.refresh();
     } catch { setError("บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { setSaving(false); }
   }

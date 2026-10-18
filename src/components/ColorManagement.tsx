@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, TextField, Typography } from "@mui/material";
 import { parseColorInput, validColorHex, type ConfiguredColor } from "@/lib/color-config";
+import { useFeedback } from "@/components/Feedback";
 
 export function ColorManagement({ colors }: { colors: ConfiguredColor[] }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [open, setOpen] = useState(false);
   const [id, setId] = useState("");
   const [name, setName] = useState("");
@@ -20,7 +22,7 @@ export function ColorManagement({ colors }: { colors: ConfiguredColor[] }) {
       setSaving(true);
       const response = await fetch(id ? `/api/colors/${id}` : "/api/colors", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
       if (!response.ok) { const result = await response.json(); throw new Error(result.error || "บันทึกสีไม่สำเร็จ"); }
-      setOpen(false); router.refresh();
+      setOpen(false); notify("บันทึกสีแล้ว"); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "บันทึกสีไม่สำเร็จ"); }
     finally { setSaving(false); }
   }

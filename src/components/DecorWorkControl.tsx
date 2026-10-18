@@ -8,11 +8,13 @@ import { ALL_SIZES, type Size } from "@/lib/order-sizes";
 import { sizeColumns, sizeLabel } from "@/lib/size-columns";
 import { formatDateISO, formatDateTime, formatNumber } from "@/lib/format";
 import type { DecorWorkInput, OrderProduct } from "@/types/order";
+import { useFeedback } from "@/components/Feedback";
 
 export function DecorWorkControl({ product, orderId, index, readOnly = false, steps = [...DECOR_STEPS] }: {
   product: OrderProduct; orderId: string; index: number; readOnly?: boolean; steps?: string[];
 }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [open, setOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
@@ -48,7 +50,7 @@ export function DecorWorkControl({ product, orderId, index, readOnly = false, st
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "บันทึกไม่สำเร็จ"); return; }
-      setOpen(false); router.refresh();
+      setOpen(false); notify("บันทึกงานตกแต่งแล้ว"); router.refresh();
     } catch { setError("บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { savingRef.current = false; setSaving(false); }
   }

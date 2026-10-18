@@ -8,12 +8,14 @@ import { WorkDetailsEditor } from "@/components/WorkDetailsEditor";
 import { ProductImagePreview } from "@/components/ProductImagePreview";
 import { artworkSlots } from "@/lib/artworks";
 import type { WorkDetails, ProductionArtwork } from "@/types/order";
+import { useFeedback } from "@/components/Feedback";
 
 export function WorkDetailsControl({ orderId, index, workFront = "", workBack = "", workSleeves = "",
   productionSteps = "", workRemark = "", artworks = [], readOnly = false }: Partial<WorkDetails> & {
     orderId: string; index: number; artworks?: ProductionArtwork[]; readOnly?: boolean;
   }) {
   const router = useRouter();
+  const notify = useFeedback();
   const current = { workFront, workBack, workSleeves, productionSteps, workRemark };
   const [draft, setDraft] = useState<WorkDetails>(current);
   const [draftArtworks, setDraftArtworks] = useState(() => artworkSlots(artworks));
@@ -36,7 +38,7 @@ export function WorkDetailsControl({ orderId, index, workFront = "", workBack = 
         setError(data.error ?? "บันทึกรายละเอียดงานไม่สำเร็จ");
         return;
       }
-      setEditing(false); router.refresh();
+      setEditing(false); notify("บันทึกรายละเอียดงานแล้ว"); router.refresh();
     } catch {
       setError("บันทึกรายละเอียดงานไม่สำเร็จ กรุณาลองอีกครั้ง");
     } finally { setSaving(false); }

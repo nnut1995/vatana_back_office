@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, MenuItem, Select, Stack } from "@mui/material";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, MenuItem, Select, Stack } from "@mui/material";
+import { useFeedback } from "@/components/Feedback";
 import {
   ORDER_STATUSES,
   ORDER_STATUS_LABELS,
@@ -23,9 +24,17 @@ export function OrderStatusControl({
   const [value, setValue] = useState<OrderStatus>(status);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const notify = useFeedback();
 
-  async function changeStatus(next: OrderStatus) {
-    const previous = value;
+  function requestChange(next: OrderStatus) {
+    if (next === value) return;
+    // Cancelling hides the order from every department queue, so ask first.
+    if (next === "cancelled") setConfirmCancel(true);
+    else void changeStatus(next, value);
+  }
+
+  async function changeStatus(next: OrderStatus, previous: OrderStatus, undo = false) {
     setError("");
     setValue(next);
     setSaving(true);
@@ -37,6 +46,10 @@ export function OrderStatusControl({
       });
       if (res.ok) {
         startTransition(() => router.refresh());
+        notify(
+          undo ? `เปลี่ยนกลับเป็น "${ORDER_STATUS_LABELS[next]}" แล้ว` : `บันทึกสถานะ "${ORDER_STATUS_LABELS[next]}" แล้ว`,
+          undo || previous === "shipped" ? undefined : { action: { label: "เลิกทำ", onClick: () => void changeStatus(previous, next, true) } },
+        );
       } else {
         setValue(previous);
         setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -56,7 +69,7 @@ export function OrderStatusControl({
       value={value}
       inputProps={{ "aria-label": "สถานะคำสั่งซื้อ" }}
       disabled={saving || refreshing}
-      onChange={(e) => changeStatus(e.target.value as OrderStatus)}
+      onChange={(e) => requestChange(e.target.value as OrderStatus)}
       sx={{ minWidth: 150 }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -68,6 +81,20 @@ export function OrderStatusControl({
       ))}
     </Select>
     {error && <Alert severity="error">{error}</Alert>}
+    <Dialog open={confirmCancel} onClose={() => setConfirmCancel(false)} onClick={e => e.stopPropagation()}>
+      <DialogTitle>ยกเลิกคำสั่งซื้อนี้?</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          สินค้าในคำสั่งซื้อนี้จะหายออกจากงานของทุกแผนก และพนักงานจะบันทึกงานเพิ่มไม่ได้ ประวัติเดิมยังอยู่ครบ และเปลี่ยนสถานะกลับได้ภายหลัง
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setConfirmCancel(false)} autoFocus>ไม่ยกเลิก</Button>
+        <Button color="error" variant="contained" onClick={() => { setConfirmCancel(false); void changeStatus("cancelled", value); }}>
+          ยกเลิกคำสั่งซื้อ
+        </Button>
+      </DialogActions>
+    </Dialog>
     </Stack>
   );
 }

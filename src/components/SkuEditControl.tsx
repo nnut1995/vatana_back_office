@@ -14,12 +14,14 @@ import { parseVariants } from "@/lib/product-variants";
 import { sizeColumns, sizeLabel } from "@/lib/size-columns";
 import { emptyWorkDetails, WORK_DETAIL_FIELDS } from "@/lib/work-details";
 import type { OrderProduct, ProductionArtwork, WorkDetails } from "@/types/order";
+import { useFeedback } from "@/components/Feedback";
 
 type Row = { color: string; colorId?: string; sizes: Record<Size, string> };
 const blankRow = (): Row => ({ color: "", sizes: Object.fromEntries(ALL_SIZES.map(size => [size, "0"])) as Row["sizes"] });
 
 export function SkuEditControl({ orderId, index, product }: { orderId: string; index: number; product: OrderProduct }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [open, setOpen] = useState(false);
   const [styleCode, setStyleCode] = useState("");
   const [designName, setDesignName] = useState("");
@@ -71,7 +73,7 @@ export function SkuEditControl({ orderId, index, product }: { orderId: string; i
         const result = await response.json().catch(() => ({}));
         throw new Error(result.error || "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
-      setOpen(false); router.refresh();
+      setOpen(false); notify("บันทึกสินค้าแล้ว"); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { setSaving(false); }
   }
