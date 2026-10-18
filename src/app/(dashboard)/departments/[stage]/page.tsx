@@ -7,6 +7,7 @@ import { PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, productStatus, type ProductSta
 import { DepartmentQueue } from "@/components/DepartmentQueue";
 import { listDecorSteps } from "@/lib/decor-work-data";
 import { DECOR_STEPS } from "@/lib/decor-work";
+import { todayInBangkok } from "@/lib/order-urgency";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,8 @@ export default async function DepartmentPage({ params }: { params: Promise<{ sta
   return <Box sx={{ p: { xs: 2, md: 4 } }}>
     <Button href="/departments" sx={{ mb: 2 }}>ทุกแผนก</Button>
     <Typography variant="h4" gutterBottom>{PRODUCT_STATUS_LABELS[selected]}</Typography>
-    <Typography color="text.secondary" sx={{ mb: 3 }}>งานรายสินค้า/SKU ในขั้นตอนนี้ เรียงวันที่สั่งซื้อเก่าก่อน บันทึกงานหรือส่งต่อแผนกได้จากแต่ละรายการ</Typography>
+    <Typography color="text.secondary" sx={{ mb: 3 }}>งานรายสินค้า/SKU ในขั้นตอนนี้ กดที่รายการเพื่อบันทึกจำนวนหรือส่งต่อแผนกถัดไป</Typography>
     {!items ? <Alert severity="error">โหลดงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</Alert> :
-      <DepartmentQueue admin={user.role === "admin"} stage={selected} decorSteps={decorSteps} items={items.filter(item => productStatus(item.product) === selected)} />}
+      <DepartmentQueue admin={user.role === "admin"} stage={selected} today={todayInBangkok()} decorSteps={decorSteps} items={items.filter(item => productStatus(item.product) === selected)} />}
   </Box>;
 }
