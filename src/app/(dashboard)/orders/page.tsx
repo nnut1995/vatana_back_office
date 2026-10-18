@@ -8,6 +8,7 @@ import { OrdersTable } from "@/components/OrdersTable";
 import { NewOrderDialog } from "@/components/NewOrderDialog";
 import { OrderListFilters } from "@/components/OrderListFilters";
 import { formatNumber } from "@/lib/format";
+import { todayInBangkok } from "@/lib/order-urgency";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     </Box>
     <OrderListFilters key={JSON.stringify(options)} options={options} />
     {!result ? <Alert severity="warning">ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ</Alert> : <>
-      {result.orders.length ? <OrdersTable orders={result.orders.map(serializeOrder)} /> : <Paper sx={{ p: 5, textAlign: "center" }}><Typography>{options.q || options.status ? "ไม่พบคำสั่งซื้อที่ตรงกับตัวกรอง" : "ยังไม่มีคำสั่งซื้อ คลิกสร้างคำสั่งซื้อเพื่อเริ่มต้น"}</Typography></Paper>}
+      {result.orders.length ? <OrdersTable orders={result.orders.map(serializeOrder)} today={todayInBangkok()} /> : <Paper sx={{ p: 5, textAlign: "center" }}><Typography>{options.q || options.status ? "ไม่พบคำสั่งซื้อที่ตรงกับตัวกรอง" : "ยังไม่มีคำสั่งซื้อ คลิกสร้างคำสั่งซื้อเพื่อเริ่มต้น"}</Typography></Paper>}
       <Stack direction="row" spacing={2} sx={{ mt: 2, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 1 }}>
         <Typography variant="body2" color="text.secondary">แสดง {result.total ? formatNumber((result.page - 1) * options.pageSize + 1) : "0"}–{formatNumber(Math.min(result.page * options.pageSize, result.total))} จาก {formatNumber(result.total)} รายการ · หน้า {formatNumber(result.page)} / {formatNumber(result.pages)}</Typography>
         <Stack direction="row" spacing={1}>
