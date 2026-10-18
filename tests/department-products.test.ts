@@ -29,3 +29,13 @@ test("a SKU moved to fabric preparation stays visible even when its order is shi
  const queue = departmentProducts([source], "fabric_preparation");
  assert.deepEqual(queue.map(item => [item.orderId, item.index, item.product.status]), [["MLS-RACER-ADULTS", 0, "fabric_preparation"]]);
 });
+
+test("queues can sort by nearest delivery date, keeping undated work last", async () => {
+  const { sortQueue } = await import("../src/lib/department-products");
+  const dated = (id: string, deliveryDate?: string) => ({ ...order(id, "new", [product("sewing")]), deliveryDate });
+  const queue = departmentProducts([dated("none"), dated("late", "2026-10-30"), dated("soon", "2026-10-20"), dated("none2"), dated("soon2", "2026-10-20")], "sewing");
+  assert.deepEqual(sortQueue(queue, "order").map(p => p.orderId), ["none", "late", "soon", "none2", "soon2"]);
+  assert.deepEqual(sortQueue(queue, "delivery").map(p => p.orderId), ["soon", "soon2", "late", "none", "none2"]);
+  assert.equal(queue[1].deliveryDate, "2026-10-30");
+  assert.equal(queue[0].deliveryDate, undefined);
+});
