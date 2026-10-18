@@ -1,7 +1,8 @@
-import type { Collection, Filter, Sort } from "mongodb";
+import type { Collection, Document, Filter, Sort } from "mongodb";
 import { ORDER_STATUSES, type Order } from "@/types/order";
 
 export const ORDER_SORTS = {
+  delivery: "กำหนดส่งใกล้สุดก่อน",
   newest: "สร้างล่าสุดก่อน", oldest: "สร้างเก่าสุดก่อน",
   date_desc: "วันที่สั่งซื้อล่าสุดก่อน", date_asc: "วันที่สั่งซื้อเก่าสุดก่อน",
   title: "ชื่อคำสั่งซื้อ ก–ฮ / A–Z",
@@ -25,7 +26,7 @@ export async function queryOrderPage(collection: Collection<Order>, options: Ord
     const literal = options.q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = ["title", "reference", "products.styleCode", "products.designName"].map(field => ({ [field]: { $regex: literal, $options: "i" } }));
   }
-  const sorts: Record<OrderListParams["sort"], Sort> = {
+  const sorts: Record<Exclude<OrderListParams["sort"], "delivery">, Sort> = {
     newest: { createdAt: -1, _id: -1 }, oldest: { createdAt: 1, _id: 1 },
     date_desc: { orderDate: -1, createdAt: -1, _id: -1 }, date_asc: { orderDate: 1, createdAt: 1, _id: 1 },
     title: { title: 1, _id: 1 },
@@ -33,10 +34,28 @@ export async function queryOrderPage(collection: Collection<Order>, options: Ord
   const total = await collection.countDocuments(filter);
   const pages = Math.max(1, Math.ceil(total / options.pageSize));
   const page = Math.min(options.page, pages);
-  const orders = await collection.find(filter, { projection: { "products.history": 0, statusHistory: 0 } })
-    .sort(sorts[options.sort]).skip((page - 1) * options.pageSize).limit(options.pageSize).toArray();
+  const projection = { "products.history": 0, statusHistory: 0 };
+  const skip = (page - 1) * options.pageSize;
+  const orders = options.sort === "delivery"
+    ? await deliveryPage(collection, filter, projection, skip, options.pageSize)
+    : await collection.find(filter, { projection })
+      .sort(sorts[options.sort]).skip(skip).limit(options.pageSize).toArray();
   return { orders, total, pages, page };
 }
+/** Soonest delivery first; orders without a delivery date come after all dated ones. */
+async function deliveryPage(collection: Collection<Order>, filter: Filter<Order>, projection: Document, skip: number, limit: number) {
+  const dated: Filter<Order> = { $and: [filter, { deliveryDate: { $gt: "" } }] };
+  const undated: Filter<Order> = { $and: [filter, { $nor: [{ deliveryDate: { $gt: "" } }] }] };
+  const datedCount = await collection.countDocuments(dated);
+  const first = skip < datedCount
+    ? await collection.find(dated, { projection }).sort({ deliveryDate: 1, createdAt: -1, _id: -1 }).skip(skip).limit(limit).toArray()
+    : [];
+  if (first.length >= limit) return first;
+  const rest = await collection.find(undated, { projection }).sort({ createdAt: -1, _id: -1 })
+    .skip(Math.max(0, skip - datedCount)).limit(limit - first.length).toArray();
+  return [...first, ...rest];
+}
+
 export function orderListUrl(options: OrderListParams, page: number) {
   const query = new URLSearchParams({ q: options.q, status: options.status, sort: options.sort, pageSize: String(options.pageSize), page: String(page) });
   return `/orders?${query}`;

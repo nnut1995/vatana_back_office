@@ -1,7 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
+  Chip,
+  Link as MuiLink,
   Paper,
   Table,
   TableBody,
@@ -14,8 +17,24 @@ import {
 import { OrderStatusControl } from "@/components/OrderStatusControl";
 import { formatDateISO, formatNumber } from "@/lib/format";
 import { orderTotal, type SerializedOrder } from "@/types/order";
+import { deliveryLabel, deliveryState } from "@/lib/order-urgency";
 
-export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
+/** Delivery date with a red "late" or amber "due soon" chip for open orders. */
+export function DeliveryDateCell({ order, today }: { order: Pick<SerializedOrder, "status" | "deliveryDate">; today: string }) {
+  if (!order.deliveryDate) return <Typography variant="body2" color="text.secondary">—</Typography>;
+  const state = deliveryState(order, today);
+  const label = deliveryLabel(order, today);
+  return (
+    <>
+      <Typography variant="body2" sx={{ fontWeight: state === "overdue" ? 700 : undefined, color: state === "overdue" ? "error.main" : undefined }}>
+        {formatDateISO(order.deliveryDate)}
+      </Typography>
+      {label && <Chip size="small" label={label} color={state === "overdue" ? "error" : "warning"} variant={state === "overdue" ? "filled" : "outlined"} sx={{ mt: 0.5 }} />}
+    </>
+  );
+}
+
+export function OrdersTable({ orders, today }: { orders: SerializedOrder[]; today: string }) {
   const router = useRouter();
 
   return (
@@ -24,6 +43,7 @@ export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
         <TableHead>
           <TableRow>
             <TableCell>คำสั่งซื้อ</TableCell>
+            <TableCell>กำหนดส่ง</TableCell>
             <TableCell>วันที่สั่งซื้อ</TableCell>
             <TableCell align="right">สินค้า</TableCell>
             <TableCell align="right">จำนวนชิ้นทั้งหมด</TableCell>
@@ -39,9 +59,18 @@ export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
               onClick={() => router.push(`/orders/${order._id}`)}
             >
               <TableCell>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {/* A real link, so the order opens from the keyboard or in a new tab. */}
+                <MuiLink
+                  component={Link}
+                  href={`/orders/${order._id}`}
+                  underline="hover"
+                  color="text.primary"
+                  variant="body2"
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  sx={{ fontWeight: 600, display: "block" }}
+                >
                   {order.title}
-                </Typography>
+                </MuiLink>
                 <Typography
                   variant="caption"
                   color="text.secondary"
@@ -50,6 +79,7 @@ export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
                   {order.reference}
                 </Typography>
               </TableCell>
+              <TableCell sx={{ whiteSpace: "nowrap" }}><DeliveryDateCell order={order} today={today} /></TableCell>
               <TableCell>{formatDateISO(order.orderDate)}</TableCell>
               <TableCell align="right">{order.products.length}</TableCell>
               <TableCell align="right">{formatNumber(orderTotal(order))}</TableCell>

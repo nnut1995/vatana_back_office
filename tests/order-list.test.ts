@@ -34,5 +34,14 @@ test("database pagination sorts newest creation first and filters before countin
   assert.equal((await queryOrderPage(collection, { ...defaults, sort: "oldest" })).orders[0].reference, "REF-0");
   assert.equal((await queryOrderPage(collection, { ...defaults, sort: "date_desc" })).orders[0].reference, "REF-0");
   assert.equal((await queryOrderPage(collection, { ...defaults, q: "missing" })).total, 0);
+  await collection.updateOne({ reference: "REF-50" }, { $set: { deliveryDate: "2026-03-01" } });
+  await collection.updateOne({ reference: "REF-60" }, { $set: { deliveryDate: "2026-02-01" } });
+  const byDelivery = await queryOrderPage(collection, { ...defaults, sort: "delivery" });
+  assert.deepEqual(byDelivery.orders.slice(0, 3).map(o => o.reference), ["REF-60", "REF-50", "REF-204"]);
+  assert.equal(byDelivery.total, 205);
+  const lastDelivery = await queryOrderPage(collection, { ...defaults, sort: "delivery", page: 21 });
+  assert.equal(lastDelivery.orders.length, 5);
+  const allDelivery = await Promise.all(Array.from({ length: 21 }, (_, i) => queryOrderPage(collection, { ...defaults, sort: "delivery", page: i + 1 })));
+  assert.equal(new Set(allDelivery.flatMap(r => r.orders.map(o => String(o._id)))).size, 205);
  } finally { await collection.drop(); await client.close(); }
 });
