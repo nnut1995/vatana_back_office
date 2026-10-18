@@ -31,11 +31,13 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
   const notify = useFeedback();
   const [refreshing, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  // "record": log quantities for the current department. "move": hand the SKU to another stage.
+  const [mode, setMode] = useState<"record" | "move">("record");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [next, setNext] = useState(status);
   const [notes, setNotes] = useState(productionNotes);
   const [reason, setReason] = useState("");
-  const [withQuantity, setWithQuantity] = useState(false);
+  const [withQuantityChecked, setWithQuantity] = useState(false);
   const [received, setReceived] = useState("");
   const [sent, setSent] = useState("");
   const [defective, setDefective] = useState("0");
@@ -49,6 +51,7 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
   const latest = [...history].reverse().find(e => e.quantities);
 
   const suggested = previousStageOutput(history, next);
+  const nextStage = PRODUCT_STATUSES[PRODUCT_STATUSES.indexOf(status) + 1] as ProductStatus | undefined;
 
   function changeStage(stage: ProductStatus) {
     setNext(stage);
@@ -59,9 +62,10 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
     setError("");
   }
 
-  function begin() {
-    setNext(status); setNotes(productionNotes); setReason(""); setWithQuantity(false);
-    const source = previousStageOutput(history, status);
+  function begin(kind: "record" | "move") {
+    const stage = kind === "move" ? nextStage ?? status : status;
+    setMode(kind); setNext(stage); setNotes(productionNotes); setReason(""); setWithQuantity(kind === "record");
+    const source = previousStageOutput(history, stage);
     setReceived(source ? String(source.sent) : ""); setReceivedEdited(false);
     setSent(""); setDefective("0"); setError("");
     requestId.current = crypto.randomUUID(); lastPayload.current = ""; setOpen(true);
@@ -69,11 +73,14 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
 
   async function save() {
     const counts = [received, sent, defective.trim() || "0"];
+    // In "record" mode a note on its own is still allowed: leave ส่งออก and เสีย empty.
+    const noteOnly = mode === "record" && !sent.trim() && Number(defective || 0) === 0 && (!!reason.trim() || notes.trim() !== productionNotes);
+    const withQuantity = withQuantityChecked && !noteOnly;
     if (withQuantity && (counts.some(n => !/^\d+$/.test(n) || !Number.isSafeInteger(Number(n))) || Number(received) <= 0 || remaining < 0)) {
       setError("กรอกจำนวนเต็มให้ครบ รับเข้าต้องมากกว่า 0 และส่งออก + เสีย ต้องไม่เกินรับเข้า"); return;
     }
     if (!withQuantity && next === status && notes.trim() === productionNotes && !reason.trim()) {
-      setError("กรุณาเปลี่ยนขั้นตอน ระบุจำนวน หรือเพิ่มหมายเหตุของรายการนี้"); return;
+      setError(mode === "move" ? "กรุณาเลือกขั้นตอนอื่นที่จะส่งต่อ" : "กรุณาเปลี่ยนขั้นตอน ระบุจำนวน หรือเพิ่มหมายเหตุของรายการนี้"); return;
     }
     const payload = JSON.stringify({ status: next, productionNotes: notes, note: reason,
       ...(withQuantity ? { quantities: { received: Number(received), sent: Number(sent), defective: Number(defective) } } : {}) });
@@ -89,40 +96,46 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
-      setOpen(false); notify("บันทึกการผลิตแล้ว"); startTransition(() => router.refresh());
+      setOpen(false);
+      notify(next !== status ? `ส่งต่อไป${PRODUCT_STATUS_LABELS[next]}แล้ว` : withQuantity ? "บันทึกจำนวนแล้ว" : "บันทึกหมายเหตุแล้ว"); startTransition(() => router.refresh());
     } catch (e) { setError(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { setSaving(false); }
   }
 
   return <Stack spacing={1} sx={{ maxWidth: "100%" }}>
     <Typography variant="body2" sx={{ fontWeight: 600 }}>ขั้นตอนผลิต: {PRODUCT_STATUS_LABELS[status]}</Typography>
-    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-      <Button size="small" variant="outlined" disabled={busy} onClick={begin}>บันทึกการผลิต / เปลี่ยนขั้นตอน</Button>
-      <Button size="small" onClick={() => setHistoryOpen(true)}>ประวัติทั้งหมด ({formatNumber(history.length)})</Button>
+    <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+      <Button variant="contained" disabled={busy} onClick={() => begin("record")} sx={{ minHeight: 44 }}>บันทึกจำนวน</Button>
+      <Button variant="outlined" disabled={busy} onClick={() => begin("move")} sx={{ minHeight: 44 }}>
+        {nextStage ? `ส่งต่อ: ${PRODUCT_STATUS_LABELS[nextStage]}` : "เปลี่ยนขั้นตอน"}
+      </Button>
+      <Button onClick={() => setHistoryOpen(true)} sx={{ minHeight: 44 }}>ประวัติทั้งหมด ({formatNumber(history.length)})</Button>
     </Stack>
     <Typography variant="caption" color="text.secondary">จำนวนที่สั่ง {formatNumber(orderedUnits)} ตัว</Typography>
     {latest?.quantities && <Typography variant="caption">รายการจำนวนล่าสุด · {PRODUCT_STATUS_LABELS[latest.to]}: รับ {latest.quantities.received} / ส่งออก {latest.quantities.sent} / เสีย {latest.quantities.defective} / ค้าง {latest.quantities.received - latest.quantities.sent - latest.quantities.defective} ตัว</Typography>}
     {productionNotes && <Typography variant="caption" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxWidth: 440 }}>{productionNotes}</Typography>}
     <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }} fullWidth maxWidth="sm">
-      <DialogTitle>บันทึกการผลิตของ SKU</DialogTitle>
+      <DialogTitle>{mode === "record" ? `บันทึกจำนวน · ${PRODUCT_STATUS_LABELS[status]}` : "ส่งต่องานไปขั้นตอนอื่น"}</DialogTitle>
       <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-        <TextField select label="แผนก / ขั้นตอนที่บันทึก" value={next} disabled={busy} onChange={e => changeStage(e.target.value as ProductStatus)}>
-          {PRODUCT_STATUSES.map(s => <MenuItem key={s} value={s}>{PRODUCT_STATUS_LABELS[s]}</MenuItem>)}
-        </TextField>
-        <Typography variant="caption">จำนวนด้านล่างเป็นผลของแผนกที่เลือกในรายการนี้ สามารถบันทึกหลายครั้งในแผนกเดิมได้ โดยไม่เปลี่ยนยอดสั่งซื้อ</Typography>
-        <FormControlLabel control={<Checkbox checked={withQuantity} disabled={busy} onChange={e => setWithQuantity(e.target.checked)} />} label="บันทึกจำนวนรับเข้า / ส่งออก / เสีย" />
-        {withQuantity && <>
+        {mode === "move" && <>
+          <TextField select label="ส่งต่อไปที่" value={next} disabled={busy} onChange={e => changeStage(e.target.value as ProductStatus)}
+            helperText={`ตอนนี้อยู่ที่ ${PRODUCT_STATUS_LABELS[status]}`}>
+            {PRODUCT_STATUSES.map(s => <MenuItem key={s} value={s} disabled={s === status}>{PRODUCT_STATUS_LABELS[s]}</MenuItem>)}
+          </TextField>
+          <FormControlLabel control={<Checkbox checked={withQuantityChecked} disabled={busy} onChange={e => setWithQuantity(e.target.checked)} />} label={`บันทึกจำนวนรับเข้าของ${PRODUCT_STATUS_LABELS[next]}ด้วย`} />
+        </>}
+        {withQuantityChecked && <>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {([{ label: "รับเข้า (ตัว)", value: received, set: (value: string) => { setReceived(value); setReceivedEdited(true); } }, { label: "ส่งออก (ตัว)", value: sent, set: setSent }, { label: "เสีย (ตัว)", value: defective, set: setDefective }]).map(f => <TextField key={f.label} fullWidth label={f.label} type="number" value={f.value} disabled={busy} onChange={e => { f.set(e.target.value); setError(""); }} slotProps={{ htmlInput: { min: 0, step: 1 } }} />)}
+            {([{ label: "รับเข้า (ตัว)", value: received, set: (value: string) => { setReceived(value); setReceivedEdited(true); } }, { label: "ส่งออก (ตัว)", value: sent, set: setSent }, { label: "เสีย (ตัว)", value: defective, set: setDefective }]).map(f => <TextField key={f.label} fullWidth label={f.label} type="number" value={f.value} disabled={busy} onChange={e => { f.set(e.target.value); setError(""); }} slotProps={{ htmlInput: { min: 0, step: 1, inputMode: "numeric" } }} />)}
           </Stack>
-          <Typography variant="caption" color="text.secondary">{suggested ? `รับเข้าเติมจากยอดส่งออกล่าสุดของ${PRODUCT_STATUS_LABELS[suggested.stage]} ${suggested.sent} ตัว (แก้ไขได้)` : "ยังไม่มียอดส่งออกจากขั้นตอนก่อนหน้า กรุณากรอกรับเข้าเอง"} · ไม่กรอกจำนวนเสียจะนับเป็น 0</Typography>
+          <Typography variant="caption" color="text.secondary">{suggested ? `รับเข้าเติมจากยอดส่งออกล่าสุดของ${PRODUCT_STATUS_LABELS[suggested.stage]} ${suggested.sent} ตัว (แก้ไขได้)` : "ยังไม่มียอดส่งออกจากขั้นตอนก่อนหน้า กรุณากรอกรับเข้าเอง"} · ไม่กรอกจำนวนเสียจะนับเป็น 0 · บันทึกซ้ำได้หลายครั้ง ยอดสั่งซื้อไม่เปลี่ยน{mode === "record" && " · จะบันทึกแค่หมายเหตุ ให้เว้นช่องส่งออกว่างไว้"}</Typography>
           <Typography color={remaining < 0 ? "error" : "text.secondary"}>ค้างในแผนกจากรายการนี้: {formatNumber(remaining)} ตัว</Typography>
         </>}
-        <TextField label="หมายเหตุรายการ / เหตุผลที่แก้ไข" multiline minRows={2} value={reason} disabled={busy} onChange={e => setReason(e.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} helperText="เช่น ส่งออก 8 ตัว เสีย 2 ตัวจากตะเข็บขาด หรืออ้างอิงรายการที่ต้องการแก้ไข" />
-        <TextField label="หมายเหตุการผลิตประจำสินค้า" multiline minRows={2} value={notes} disabled={busy} onChange={e => setNotes(e.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} />
+        <TextField label="หมายเหตุรายการ / เหตุผลที่แก้ไข" multiline minRows={2} value={reason} disabled={busy} onChange={e => setReason(e.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} helperText="เก็บในประวัติของรายการนี้ เช่น เสีย 2 ตัวจากตะเข็บขาด หรืออ้างอิงเลขรายการที่ต้องการแก้" />
+        <TextField label="หมายเหตุประจำสินค้า" multiline minRows={2} value={notes} disabled={busy} onChange={e => setNotes(e.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} helperText="แสดงบนสินค้านี้ตลอด ทุกแผนกเห็น" />
         {error && <Alert severity="error">{error}</Alert>}
       </Stack></DialogContent>
-      <DialogActions><Button disabled={busy} onClick={() => setOpen(false)}>ยกเลิก</Button><Button variant="contained" disabled={busy} onClick={save}>{busy ? "กำลังบันทึก…" : "บันทึกและเก็บประวัติ"}</Button></DialogActions>
+      <DialogActions><Button disabled={busy} onClick={() => setOpen(false)}>ยกเลิก</Button><Button variant="contained" disabled={busy} onClick={save}>{busy ? "กำลังบันทึก…" : mode === "record" ? "บันทึกจำนวน" : `ส่งต่อไป${PRODUCT_STATUS_LABELS[next]}`}</Button></DialogActions>
     </Dialog>
     <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} fullWidth maxWidth="md">
       <DialogTitle>ประวัติ SKU ทั้งหมด ({formatNumber(history.length)} รายการ)</DialogTitle>
