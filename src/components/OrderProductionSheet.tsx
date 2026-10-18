@@ -66,12 +66,21 @@ export function ProductRow({
 }) {
   return (
     <Paper sx={{ overflow: "hidden" }}>
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" } }}>
+      {/* Three columns only on wide screens. Below xl the work details move under
+          the size grid so the grid keeps enough width for every size column. */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            md: "172px minmax(0, 1fr)",
+            xl: "172px minmax(0, 1fr) 300px",
+          },
+        }}
+      >
         {/* Left: image + product type */}
         <Box
           sx={{
-            width: { xs: "100%", md: 172 },
-            flexShrink: 0,
             p: 2,
             display: "flex",
             flexDirection: "column",
@@ -101,7 +110,7 @@ export function ProductRow({
         </Box>
 
         {/* Middle: size grid */}
-        <Box sx={{ flexGrow: 1, minWidth: 0, overflowX: "auto" }}>
+        <Box sx={{ minWidth: 0, overflowX: "auto" }}>
           <Box
             sx={{
               px: 2,
@@ -132,12 +141,19 @@ export function ProductRow({
             />
           </Box>
           {!readOnlyDetails && <Box sx={{ px: 2, pt: 1 }}><SkuEditControl orderId={orderId} index={index} product={product} /></Box>}
-          <Table size="small" sx={{ mt: 0.5 }}>
+          <Table
+            size="small"
+            sx={{
+              mt: 0.5,
+              "& td, & th": { overflowWrap: "normal", whiteSpace: "nowrap" },
+              "& td": { fontVariantNumeric: "tabular-nums" },
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>สี</TableCell>
                 {sizeColumns(product).map((s) => (
-                  <TableCell key={s} align="center" aria-label={sizeLabel(product, s)} sx={{ fontWeight: 600 }}>
+                  <TableCell key={s} align="center" aria-label={sizeLabel(product, s)} sx={{ fontWeight: 600, minWidth: 56 }}>
                     {s}
                     {isChildShirt(product) && CHILD_SIZE_NUMBERS[s] && <Box component="span" sx={{ display: "block" }}>{CHILD_SIZE_NUMBERS[s]}</Box>}
                   </TableCell>
@@ -180,11 +196,10 @@ export function ProductRow({
         {/* Right: work overview and production sequence */}
         <Box
           sx={{
-            width: { xs: "100%", md: 300 },
-            flexShrink: 0,
+            gridColumn: { md: "1 / -1", xl: "auto" },
             p: 2,
-            borderLeft: { md: "1px solid" },
-            borderTop: { xs: "1px solid", md: "none" },
+            borderLeft: { xl: "1px solid" },
+            borderTop: { xs: "1px solid", xl: "none" },
             borderColor: "divider",
             bgcolor: "grey.50",
           }}
