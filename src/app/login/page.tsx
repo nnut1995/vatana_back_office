@@ -17,7 +17,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@vatana.local");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,6 +73,8 @@ export default function LoginPage() {
             <TextField
               label="อีเมล"
               type="email"
+              autoComplete="username"
+              autoFocus
               fullWidth
               required
               margin="normal"
@@ -82,6 +84,7 @@ export default function LoginPage() {
             <TextField
               label="รหัสผ่าน"
               type="password"
+              autoComplete="current-password"
               fullWidth
               required
               margin="normal"
@@ -100,9 +103,6 @@ export default function LoginPage() {
             </Button>
           </Box>
         </Paper>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mt: 2 }}>
-          บัญชีเริ่มต้น: admin@vatana.local / admin123
-        </Typography>
       </Container>
     </Box>
   );

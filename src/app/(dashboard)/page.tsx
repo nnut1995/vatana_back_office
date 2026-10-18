@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, Link as MuiLink, ListItemButton, Paper, Stack
 import { getDb } from "@/lib/mongodb";
 import { serializeOrder } from "@/lib/orders";
 import { listDepartmentProducts } from "@/lib/departments";
+import { RefreshButton } from "@/components/RefreshButton";
 import { formatDateISO, formatNumber } from "@/lib/format";
 import { OPEN_ORDER_STATUSES, SOON_DAYS, daysUntil, deliveryLabel, deliveryState, todayInBangkok } from "@/lib/order-urgency";
 import {
@@ -98,7 +99,7 @@ export default async function DashboardPage() {
       </Typography>
 
       {dbError && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
+        <Alert severity="warning" sx={{ mb: 3 }} action={<RefreshButton />}>
           ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ
         </Alert>
       )}

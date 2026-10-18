@@ -25,7 +25,7 @@ const theme = createTheme({
   },
   shape: { borderRadius: 10 },
   typography: {
-    fontFamily: 'var(--font-geist-sans), "Leelawadee UI", Tahoma, Thonburi, sans-serif',
+    fontFamily: 'var(--font-plex-thai), "Leelawadee UI", Tahoma, Thonburi, sans-serif',
     h4: { fontWeight: 600 },
     h6: { fontWeight: 600 },
   },

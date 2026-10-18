@@ -39,6 +39,7 @@ import HourglassTopIcon from "@mui/icons-material/HourglassTop";
 import LayersIcon from "@mui/icons-material/Layers";
 import PrintIcon from "@mui/icons-material/Print";
 import PaletteIcon from "@mui/icons-material/Palette";
+import FormatColorFillIcon from "@mui/icons-material/FormatColorFill";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CheckroomIcon from "@mui/icons-material/Checkroom";
@@ -68,7 +69,7 @@ const NAV = [
   { href: "/orders", label: "คำสั่งซื้อ", icon: <ReceiptLongIcon /> },
   { href: "/departments", label: "งานรายแผนก", icon: <AssignmentIcon /> },
   { href: "/production-report", label: "ผลงานรายแผนก", icon: <BarChartIcon /> },
-  { href: "/colors", label: "ตั้งค่าสี", icon: <PaletteIcon /> },
+  { href: "/colors", label: "ตั้งค่าสี", icon: <FormatColorFillIcon /> },
   { href: "/staff", label: "จัดการพนักงาน", icon: <GroupsIcon /> },
 ];
 
@@ -133,6 +134,17 @@ export function AppShell({
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: "fixed", top: 8, left: 8, zIndex: (t) => t.zIndex.tooltip, px: 2, py: 1.5, borderRadius: 1,
+          bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 600, textDecoration: "none",
+          transform: "translateY(-150%)", "&:focus": { transform: "none" },
+        }}
+      >
+        ข้ามไปยังเนื้อหาหลัก
+      </Box>
       <AppBar
         position="fixed"
         color="inherit"
@@ -203,7 +215,7 @@ export function AppShell({
         {navigation}
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: "background.default" }}>
+      <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, minWidth: 0, bgcolor: "background.default", outline: "none" }}>
         <Toolbar />
         <FeedbackProvider>{children}</FeedbackProvider>
       </Box>
