@@ -8,6 +8,7 @@ import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, Dia
 import {  productImageSrc, PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, type ProductStatus, type ProductHistoryEntry } from "@/types/order";
 import { previousStageOutput } from "@/lib/production-defaults";
 import { formatDateTime, formatNumber } from "@/lib/format";
+import { useFeedback } from "@/components/Feedback";
 
 const KIND = { product_details: "แก้ไขสินค้า", product_type: "แก้ไขประเภทเสื้อ", production: "บันทึกการผลิต", image: "เปลี่ยนรูปสินค้า", variants: "แก้ไขสีและจำนวนตามไซซ์", work_details: "แก้ไขรายละเอียดงาน" };
 const FIELDS = { styleCode: "รหัส SKU", designName: "ชื่อลาย / ชื่องาน", productType: "ประเภทเสื้อ", fabricType: "ประเภทเสื้อเดิมจากอีกช่อง", artworks: "Print On / รูปประกอบ", status: "ขั้นตอนผลิต", productionNotes: "หมายเหตุการผลิต", imageKey: "รูปสินค้า", variants: "สีและจำนวนตามไซซ์", workFront: "หน้า", workBack: "หลัง", workSleeves: "แขน", productionSteps: "ขั้นตอนการผลิต", workRemark: "หมายเหตุงานพิเศษ" };
@@ -27,6 +28,7 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
   history?: ProductHistoryEntry[]; orderedUnits: number;
 }) {
   const router = useRouter();
+  const notify = useFeedback();
   const [refreshing, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -87,7 +89,7 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
-      setOpen(false); startTransition(() => router.refresh());
+      setOpen(false); notify("บันทึกการผลิตแล้ว"); startTransition(() => router.refresh());
     } catch (e) { setError(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { setSaving(false); }
   }

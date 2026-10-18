@@ -44,6 +44,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CheckroomIcon from "@mui/icons-material/Checkroom";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import { FeedbackProvider } from "@/components/Feedback";
 import { PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, type ProductStatus } from "@/types/order";
 
 const DRAWER_WIDTH = 232;
@@ -204,7 +205,7 @@ export function AppShell({
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: "background.default" }}>
         <Toolbar />
-        {children}
+        <FeedbackProvider>{children}</FeedbackProvider>
       </Box>
     </Box>
   );

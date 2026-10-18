@@ -9,7 +9,8 @@ import { parseProductType } from "@/lib/product-type";
 
 import { WorkDetailsEditor } from "@/components/WorkDetailsEditor";
 import { ProductTypeBadge } from "@/components/ProductTypeBadge";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
+import { useFeedback } from "@/components/Feedback";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -80,6 +81,11 @@ export function NewOrderDialog() {
   const [artworkUploads, setArtworkUploads] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const notify = useFeedback();
+  // The form is long; bring the message into view when a save is blocked.
+  const errorRef = useCallback((node: HTMLDivElement | null) => {
+    node?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
 
   const [title, setTitle] = useState("");
   const [reference, setReference] = useState("");
@@ -143,8 +149,25 @@ export function NewOrderDialog() {
       return;
     }
 
+    // Never drop a half-filled product or colour silently: name the row instead.
+    for (const [pi, p] of products.entries()) {
+      const label = `สินค้า ${pi + 1}`;
+      if (!p.styleCode.trim() || !p.designName.trim()) {
+        setError(`${label}: กรุณาระบุรหัสสินค้าและชื่อลาย หรือลบสินค้านี้ออก`);
+        return;
+      }
+      const unnamed = p.variants.findIndex((v) => !v.color.trim() && variantTotalOf(v) > 0);
+      if (unnamed >= 0) {
+        setError(`${label}: แถวสีที่ ${unnamed + 1} มีจำนวนแต่ยังไม่ได้เลือกสี`);
+        return;
+      }
+      if (!p.variants.some((v) => v.color.trim())) {
+        setError(`${label}: กรุณาเพิ่มสีอย่างน้อยหนึ่งสี`);
+        return;
+      }
+    }
+
     const payloadProducts = products
-      .filter((p) => p.styleCode.trim() && p.designName.trim())
       .map((p) => ({
         styleCode: p.styleCode.trim(),
         designName: p.designName.trim(),
@@ -199,6 +222,7 @@ export function NewOrderDialog() {
       const data = await res.json();
       setOpen(false);
       reset();
+      notify(`สร้างคำสั่งซื้อ "${body.title}" แล้ว`);
       startTransition(() => router.push(`/orders/${data.order._id}`));
     } finally {
       setSaving(false);
@@ -221,7 +245,7 @@ export function NewOrderDialog() {
         <DialogTitle>สร้างคำสั่งผลิต</DialogTitle>
         <DialogContent dividers>
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert ref={errorRef} key={error} severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
