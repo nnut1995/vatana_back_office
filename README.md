@@ -159,7 +159,7 @@ src/
       orders/[id]/products/[index]/image/  # PATCH — set/clear a product photo
       orders/[id]/products/[index]/status/ # PATCH — move one SKU's stage
   components/              # AppShell, OrdersTable, OrderProductionSheet,
-                           # NewOrderDialog, OrderStatusControl, OrderStatusBadge,
+                           # NewOrderDialog, OrderStatusControl,
                            # ProductStatusControl, ProductImageUpload,
                            # ProductImageControl
   lib/                    # mongodb, orders, users, api-auth, format, s3, images
