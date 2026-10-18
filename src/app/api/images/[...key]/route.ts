@@ -1,3 +1,7 @@
+import { currentUser } from "@/lib/access";
+import { canWorkProduct } from "@/lib/permissions";
+import { getDb } from "@/lib/mongodb";
+import { type Order } from "@/types/order";
 import { NextResponse } from "next/server";
 import { GetObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
 import { requireAuth } from "@/lib/api-auth";
@@ -24,6 +28,16 @@ export async function GET(
     return NextResponse.json({ error: "ไม่พบข้อมูล" }, { status: 404 });
   }
 
+  const user = (await currentUser())!;
+  if (user.role !== "admin") {
+    const orders = await (await getDb()).collection<Order>("orders").find({ status: { $ne: "cancelled" }, $or: [
+      { "products.imageKey": key },
+      { "products.artworks.imageKey": key },
+    ] }, { projection: { products: 1 } }).toArray();
+    const allowed = orders.some(order => order.products.some(product => canWorkProduct(user, product) &&
+      (product.imageKey === key || product.artworks?.some(artwork => artwork.imageKey === key))));
+    if (!allowed) return NextResponse.json({ error: "ไม่มีสิทธิ์ดูรูปนี้" }, { status: 403 });
+  }
   try {
     const object = await getS3Client().send(
       new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
@@ -36,7 +50,7 @@ export async function GET(
       headers: {
         "Content-Type": object.ContentType ?? "image/webp",
         // Keys are immutable (a new photo gets a new uuid), so cache hard.
-        "Cache-Control": "private, max-age=31536000, immutable",
+        "Cache-Control": "private, no-store",
         ...(object.ContentLength
           ? { "Content-Length": String(object.ContentLength) }
           : {}),

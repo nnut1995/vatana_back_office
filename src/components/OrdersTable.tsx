@@ -54,7 +54,7 @@ export function OrdersTable({ orders }: { orders: SerializedOrder[] }) {
               <TableCell align="right">{order.products.length}</TableCell>
               <TableCell align="right">{formatNumber(orderTotal(order))}</TableCell>
               <TableCell>
-                <OrderStatusControl id={order._id} status={order.status} />
+                <OrderStatusControl key={`${order._id}-${order.status}`} id={order._id} status={order.status} />
               </TableCell>
             </TableRow>
           ))}

@@ -8,7 +8,7 @@ const nextBin = path.join(__dirname, "node_modules", "next", "dist", "bin", "nex
  *
  *   vatana-back-office      :3002  `next start` — production build, build first
  *   vatana-back-office-dev  :3003  `next dev`   — auto-reloads on save (HMR)
- *   vatana-back-office-tunnel      cloudflared  — publishes :3002 to the internet
+ *   vatana-back-office-tunnel      cloudflared  — publishes :3003 to the internet
  *
  * Separate ports, and separate build output too (dev writes to `.next/dev`,
  * production to `.next`), so neither clobbers the other.
@@ -70,12 +70,12 @@ module.exports = {
     },
     {
       // Cloudflare Tunnel: serves vatana-back-office.nandpmuaythai.com from the
-      // production app on :3002. Outbound-only — no port forwarding, no inbound
+      // active dev app on :3003. Outbound-only — no port forwarding, no inbound
       // firewall rule. Ingress rules live in cloudflared-back-office.yml; the
       // tunnel credentials it points at are in ~/.cloudflared (never committed).
       //
-      // Deliberately aimed at :3002 (`next start`) and not the :3003 dev server:
-      // this hostname is public, and the dev server is unbuilt and unhardened.
+      // The public hostname follows the live :3003 app so saved changes appear
+      // immediately. The separate :3002 production build is currently stopped.
       name: "vatana-back-office-tunnel",
       cwd: __dirname,
       script: "/opt/homebrew/bin/cloudflared",

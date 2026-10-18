@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAdmin } from "@/lib/api-auth";
 import { updateProductImage } from "@/lib/orders";
 import { isProductImageKey } from "@/lib/s3";
 
@@ -15,7 +15,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; index: string }> },
 ) {
-  const denied = await requireAuth();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   const { id, index } = await params;

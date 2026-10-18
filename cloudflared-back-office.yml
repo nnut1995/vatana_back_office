@@ -3,5 +3,5 @@ credentials-file: /Users/natn/.cloudflared/28c0bc3b-9180-493b-ba7b-b69fa9bd5b25.
 
 ingress:
   - hostname: vatana-back-office.nandpmuaythai.com
-    service: http://localhost:3002
+    service: http://localhost:3003
   - service: http_status:404

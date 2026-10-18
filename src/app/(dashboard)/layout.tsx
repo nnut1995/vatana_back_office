@@ -1,4 +1,6 @@
-import { auth } from "@/auth";
+import { requirePageUser } from "@/lib/access";
+import { listColors } from "@/lib/colors";
+import { ColorProvider } from "@/components/ColorField";
 import { AppShell } from "@/components/AppShell";
 
 export default async function DashboardLayout({
@@ -6,8 +8,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  const user = session?.user ?? {};
+  const user = await requirePageUser();
 
-  return <AppShell user={user}>{children}</AppShell>;
+  return <ColorProvider colors={await listColors()}><AppShell user={user}>{children}</AppShell></ColorProvider>;
 }

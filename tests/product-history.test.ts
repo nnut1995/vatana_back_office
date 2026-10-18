@@ -22,7 +22,7 @@ test("atomic history preserves every change, concurrent writes and retry identit
   const _id = new ObjectId();
   const now = new Date();
   const product = { styleCode: "AUDIT-TEST", designName: "test", productType: "test",
-    status: "sample" as const, instructions: ["legacy finishing"], finishings: [], variants: [{ color: "white", sizes: { XS: 0, S: 10, M: 0, L: 0, XL: 0 } }] };
+    status: "sample" as const, variants: [{ color: "white", sizes: { XS: 0, S: 10, M: 0, L: 0, XL: 0 } }] };
   try {
     await collection.insertOne({ _id, title: "isolated test", reference: "test", status: "new", orderDate: now, createdAt: now, updatedAt: now, products: [product] });
     const write = (requestId: string) => recordProductChange(collection, _id.toString(), 0, "test-actor", "production",
@@ -39,7 +39,7 @@ test("atomic history preserves every change, concurrent writes and retry identit
     await Promise.all([
       recordProductChange(collection, _id.toString(), 0, "staff-a", "production", { productionNotes: "new notes" }),
       recordProductChange(collection, _id.toString(), 0, "staff-b", "image", { imageKey: "products/test.webp" }),
-      recordProductChange(collection, _id.toString(), 0, "staff-c", "finishings", { finishings: [{ description: "ตกแต่ง" }] }),
+      recordProductChange(collection, _id.toString(), 0, "staff-c", "work_details", { workFront: "พิมพ์" }),
     ]);
     saved = (await collection.findOne({ _id }))!.products[0];
     assert.equal(saved.history?.length, 4);
@@ -47,11 +47,26 @@ test("atomic history preserves every change, concurrent writes and retry identit
     assert.equal(saved.productionNotes, "new notes");
     assert.equal(saved.imageKey, "products/test.webp");
     assert.deepEqual(saved.variants, product.variants);
-    assert.equal(saved.instructions, undefined);
-    const finishingEntry = saved.history!.find(e => e.kind === "finishings")!;
-    assert.deepEqual(finishingEntry.before.finishings, [{ description: "legacy finishing" }]);
+    const workEntry = saved.history!.find(e => e.kind === "work_details")!;
+    assert.equal(workEntry.before.workFront, "");
+    assert.equal(workEntry.after.workFront, "พิมพ์");
     await assert.rejects(recordProductChange(collection, _id.toString(), 0, "test", "production", { status: "sent" }, { received: 10, sent: 12, defective: 0 }));
     assert.equal((await collection.findOne({ _id }))!.products[0].history?.length, 4);
+    const details = { workFront: "พิมพ์ + GLOW", workBack: "ทรานสเฟอร์", workSleeves: "ทรานสเฟอร์",
+      productionSteps: "พิมพ์หน้าที่แผนกพิมพ์ → พิมพ์หลัง + แขนที่ตกแต่ง", workRemark: "ตรวจตำแหน่งก่อนพิมพ์" };
+    assert.equal(await recordProductChange(collection, _id.toString(), 0, "staff-c", "work_details", details), true);
+    saved = (await collection.findOne({ _id }))!.products[0];
+    assert.equal(saved.workFront, details.workFront);
+    assert.equal(saved.productionSteps, details.productionSteps);
+    assert.equal(saved.workRemark, details.workRemark);
+    assert.equal(saved.productionNotes, "new notes");
+    assert.deepEqual(saved.history!.at(-1)!.after, details);
+    assert.deepEqual(saved.history!.at(-1)!.before, { workFront: "พิมพ์", workBack: "", workSleeves: "", productionSteps: "", workRemark: "" });
+    await recordProductChange(collection, _id.toString(), 0, "staff-c", "work_details", { workRemark: "" });
+    saved = (await collection.findOne({ _id }))!.products[0];
+    assert.equal(saved.workRemark, "");
+    assert.equal(saved.workFront, details.workFront);
+    assert.equal(saved.history!.at(-1)!.before.workRemark, details.workRemark);
     assert.equal(await recordProductChange(collection, _id.toString(), 99, "test", "production", { status: "sent" }), false);
   } finally {
     await collection.drop();

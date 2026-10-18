@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAdmin } from "@/lib/api-auth";
 import { getS3Client, S3_BUCKET, PRODUCT_IMAGE_PREFIX } from "@/lib/s3";
 import {
   optimizeProductImage,
@@ -17,7 +17,7 @@ import {
  * that on the product and render it via `productImageSrc()`.
  */
 export async function POST(request: Request) {
-  const denied = await requireAuth();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   let form: FormData;

@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Box, Checkbox, Chip, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { useId, useState } from "react";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Checkbox, Chip, FormControlLabel, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, productTotal, type OrderProduct } from "@/types/order";
 import { productStageSummary } from "@/lib/product-stage-summary";
 import { formatNumber } from "@/lib/format";
 
 export function OrderProductStages({ products }: { products: OrderProduct[] }) {
+  const sectionId = useId();
   const [showAll, setShowAll] = useState(false);
   const rows = products.map(product => ({ product, stages: productStageSummary(product) }));
   const visible = PRODUCT_STATUSES.filter(stage => showAll || rows.some(row => row.stages.some(s => s.stage === stage && (s.current || s.records > 0))));
-  return <Paper sx={{ mb: 3, overflow: "hidden" }}>
-    <Box sx={{ p: 2.5 }}>
-      <Typography variant="h6">จำนวนสินค้าแยกตามขั้นตอน</Typography>
+  return <Accordion defaultExpanded={false} disableGutters sx={{ mb: 3, overflow: "hidden", "&::before": { display: "none" } }}>
+    <AccordionSummary expandIcon={<ExpandMoreIcon />} id={`${sectionId}-heading`} aria-controls={`${sectionId}-content`} sx={{ px: 2.5 }}>
+      <Typography component="span" variant="h6">จำนวนสินค้าแยกตามขั้นตอน</Typography>
+    </AccordionSummary>
+    <AccordionDetails sx={{ p: 0 }}>
+    <Box sx={{ px: 2.5, pb: 2.5 }}>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>แต่ละแถวเป็นสินค้าในคำสั่งซื้อนี้ แสดงจำนวนรับเข้า ส่งออก เสีย และค้างตามบันทึกของแต่ละขั้นตอน (หน่วย: ตัว)</Typography>
       <FormControlLabel control={<Checkbox checked={showAll} onChange={e => setShowAll(e.target.checked)} />} label="แสดงทุกขั้นตอน" />
     </Box>
@@ -42,5 +47,6 @@ export function OrderProductStages({ products }: { products: OrderProduct[] }) {
       </TableRow>)}</TableBody>
     </Table></TableContainer>
     <Typography variant="caption" component="p" color="text.secondary" sx={{ p: 2, m: 0 }}>รวมทุกรายการที่บันทึกจำนวน ไม่ใช่ยอดคงคลังแบบเรียลไทม์: ค้างตามบันทึก = รับเข้า − ส่งออก − เสีย รายการแก้ไขที่ลงจำนวนซ้ำจะถูกนับเพิ่ม และไม่ควรรวมจำนวนข้ามขั้นตอนเพราะเสื้อตัวเดิมผ่านหลายแผนก</Typography>
-  </Paper>;
+    </AccordionDetails>
+  </Accordion>;
 }

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { departmentProducts } from "../src/lib/department-products";
 import type { SerializedOrder, OrderProduct } from "../src/types/order";
 
-const product = (status?: OrderProduct["status"]): OrderProduct => ({ styleCode: "SAME-SKU", designName: "test", productType: "test", status, finishings: [], variants: [] });
+const product = (status?: OrderProduct["status"]): OrderProduct => ({ styleCode: "SAME-SKU", designName: "test", productType: "test", status, variants: [] });
 const order = (id: string, status: SerializedOrder["status"], products: OrderProduct[]): SerializedOrder => ({ _id: id, reference: id, title: id, status, products, orderDate: "2026-09-28", createdAt: "2026-09-28", updatedAt: "2026-09-28" });
 
 test("department queues select individual products and retain original write targets", () => {
@@ -15,9 +15,17 @@ test("department queues select individual products and retain original write tar
   assert.equal(departmentProducts(orders, "folding")[0].index, 1);
 });
 
-test("closed orders are excluded and legacy products enter the sample queue", () => {
+test("cancelled orders are excluded; shipped and completed orders retain product queues", () => {
   const orders = [order("active", "new", [product()]), ...(["cancelled", "completed", "shipped"] as const).map(status => order(status, status, [product("sample")]))];
-  assert.deepEqual(departmentProducts(orders, "sample").map(p => p.orderId), ["active"]);
+  assert.deepEqual(departmentProducts(orders, "sample").map(p => p.orderId), ["active", "completed", "shipped"]);
   assert.equal(departmentProducts(orders, "sewing").length, 0);
   assert.equal(departmentProducts(Array.from({length: 250}, (_, i) => order(String(i), "new", [product()]))).length, 250);
+});
+
+
+test("a SKU moved to fabric preparation stays visible even when its order is shipped", () => {
+ const source = order("MLS-RACER-ADULTS", "shipped", [product("wait_for_approval"), product("printing")]);
+ source.products[0].status = "fabric_preparation";
+ const queue = departmentProducts([source], "fabric_preparation");
+ assert.deepEqual(queue.map(item => [item.orderId, item.index, item.product.status]), [["MLS-RACER-ADULTS", 0, "fabric_preparation"]]);
 });

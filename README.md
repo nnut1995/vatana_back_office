@@ -242,3 +242,64 @@ Both routes require a session cookie — they return `401` otherwise.
 - รูปภาพเดิมที่อยู่ในประวัติจะถูกเก็บไว้ การแก้รายการที่ลงผิดให้เพิ่มรายการใหม่พร้อมอ้างอิงเลขรายการเดิม จำนวนในแต่ละแผนกไม่ควรนำมารวมข้ามแผนกเป็นยอดสินค้า
 - State changes and audit entries use one atomic MongoDB update with a per-product revision for concurrent edits. Production submissions carry a retry ID to avoid duplicate logs. History is appended without trimming; monitor MongoDB document size for very long-lived orders (16 MiB document limit).
 - Integration checks use a uniquely named temporary test collection: `node --env-file=.env.local --import tsx --test tests/product-history.test.ts`.
+
+### Production sheet PDF
+
+Create Order supports an optional delivery date, one shirt type, and up to three
+uploaded artwork panels with editable captions (Print On, Tag on Size Label,
+Stick on T-shirt). Front/back/sleeve printing instructions and production notes
+remain in the existing work details. Historical orders need no migration.
+
+The order detail page downloads an authenticated A4 landscape PDF, with garment
+photos, size/colour quantities, artwork, printing/shirt-type instructions, and totals.
+PDF rendering uses `playwright-core` and installed Google Chrome on macOS. On other
+hosts install Chromium and set `PDF_CHROMIUM_EXECUTABLE_PATH` to its executable;
+install Thai-capable system fonts as well (e.g. Noto Sans Thai). The exporter embeds
+uploaded S3 images and denies browser network requests. Legacy external image URLs
+are not fetched by the server; upload those images to include them in PDF exports.
+An unavailable uploaded image fails the export rather than silently dropping it.
+
+### Persistent development mock orders
+
+On the verified local dev server (:3003), run `npm run seed:mock -- --dev`.
+This adds 63 clearly marked `[MOCK]` orders to the configured local development
+database and seven shared artwork images. Existing orders are never updated;
+repeat runs reuse the same fixtures. The three main references are
+`MOCK-CNY-REFERENCE-20261001` (4 products, 3,800 pieces),
+`MOCK-CNY-LARGE-20261001` (12 products, 360 colour rows), and
+`MOCK-CNY-LONG-20261001` (100 colour rows and long Thai/English instructions).
+The remaining 60 orders exercise search, statuses, sorting, and pagination.
+Search `[MOCK]` in Orders to find the entire set.
+
+To remove only this fixture batch and its uploaded images, run
+`npm run seed:mock -- --dev --cleanup`. The seed script requires local MongoDB,
+an explicit `--dev`, and the existing healthy dev server. It tags records with
+`mockBatch: vatana-reference-20261001` and tracks only its own image keys in
+`mock_fixture_assets`. Never run this script against a production database.
+
+### Shirt type and editable work artwork
+
+`productType` is the sole editable shirt-type field. Historical `fabricType` values
+remain readable: missing shirt types fall back to that value, and conflicting
+values appear as legacy context until an explicit shirt-type edit synchronizes
+the old alias. Both old values are preserved in the atomic product history.
+No migration overwrites existing orders or fixtures.
+
+Print On, Tag on Size Label, and Stick on T-shirt images and captions are inside
+Work Details for both creation and saved-order editing. Work-detail edits save
+text and artwork in one audited update; omitted artwork in older API payloads
+leaves existing images untouched. Replaced images remain available for history.
+The stage quantity summary starts collapsed and expands on demand.
+
+Children's shirt sizes (ประเภทเสื้อ containing เด็ก, kids or children) use the reference heading pairs S/4, M/6, L/8, XL/10, XXL/12 in creation, quantity editing, the order sheet and PDF. The numbers are size aliases, not ages or measurements. Adult shirts retain XS–XL. XXL is optional in stored variants for compatibility; existing nonzero XS/XXL quantities remain visible if a shirt's type changes. All product, stage and order totals include XXL. No existing order is migrated.
+
+### บันทึกงานแผนกตกแต่ง
+
+- เปิด **แผนกตกแต่ง** แล้วกด **บันทึกงานที่ทำแล้ว** ใต้สินค้า/SKU ที่ต้องการ
+- ระบุชื่อผู้ทำงาน วันที่ และช่วง **เช้า / บ่าย / OT** จากนั้นเลือกขั้นตอนและใส่จำนวนแยกสี–ไซซ์เฉพาะที่ทำในรอบนั้น ช่องว่างนับเป็น 0 หรือกด **เติมยอดที่เหลือ** ของสีนั้น
+- ขั้นตอนเริ่มต้น: ติดหน้า, รีดหน้า, ติดหลัง, รีดหลัง, ติดแขน, รีดแขน, พิมพ์คอ, ดึงป้าย สามารถพิมพ์ชื่อขั้นตอนใหม่ได้ และเมื่อบันทึกแล้วชื่อจะอยู่ในตัวเลือกสำหรับงานอื่นด้วย
+- แต่ละขั้นตอนมีจำนวนสะสมแยกกัน จึงบันทึกติดหน้าช่วงเช้า XS–M แล้วติดหน้าช่วงบ่าย L–XL ได้ ก่อนบันทึกรีดหน้าและพิมพ์คอโดยคนอื่นช่วง OT สามารถบันทึกจำนวนเกินยอดสั่งได้ทั้งรายรอบและยอดสะสม โดยยอดสั่งเดิมไม่เปลี่ยน
+- กด **ดูสรุปและประวัติ** เพื่อเปิดหน้าต่างแสดงยอดทำแล้วและประวัติ แบ่งประวัติหน้าละ 10 รายการ หน้ารวมสินค้าแสดงเฉพาะจำนวนรายการและปุ่มดำเนินการ
+- ประวัติแสดงผู้ทำงานและผู้บันทึกแยกกัน พร้อมวัน/ช่วงเวลา สี และจำนวนทุกไซซ์ ยังคงแสดงในใบสั่งซื้อและแผนกถัดไปหลังส่งต่องานแล้ว
+- ผู้ดูแลและพนักงานที่มีสิทธิ์แผนกตกแต่งบันทึกได้เฉพาะสินค้าที่ยังอยู่ในแผนกตกแต่งและคำสั่งซื้อไม่ถูกยกเลิก การบันทึกงานย่อยไม่เปลี่ยนแผนกสินค้า รายการเก็บแบบเพิ่มต่อท้าย และรองรับการลองส่งซ้ำโดยไม่นับยอดซ้ำ
+- ตรวจสอบด้วย `node --env-file=.env.local --import tsx --test tests/decor-work.test.ts` ใช้ collection ทดสอบแยกเฉพาะกิจแล้วลบทิ้ง

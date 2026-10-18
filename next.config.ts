@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: ["vatana-back-office.nandpmuaythai.com"],
 };
 
 export default nextConfig;

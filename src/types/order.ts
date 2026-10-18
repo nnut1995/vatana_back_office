@@ -1,14 +1,16 @@
+import { ALL_SIZES } from "../lib/order-sizes";
+import type { SizeBreakdown } from "../lib/order-sizes";
 import type { ObjectId } from "mongodb";
 
 export const ORDER_STATUSES = [
   "new",
   "in_production",
-  "shipped",
   "completed",
   "cancelled",
 ] as const;
 
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
+/** shipped is retained only to read historical orders and audit entries. */
+export type OrderStatus = (typeof ORDER_STATUSES)[number] | "shipped";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: "ใหม่",
@@ -52,18 +54,19 @@ export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
 /** Where a SKU starts, and what orders written before statuses fall back to. */
 export const DEFAULT_PRODUCT_STATUS: ProductStatus = "sample";
 
-/** Fixed size columns, matching the production sheet. */
-export const SIZES = ["XS", "S", "M", "L", "XL"] as const;
-export type Size = (typeof SIZES)[number];
-export type SizeBreakdown = Record<Size, number>;
+// Public compatibility exports; runtime consumers import order-sizes directly.
+export { SIZES, CHILD_SIZES, ALL_SIZES } from "../lib/order-sizes";
+export type { Size, SizeBreakdown } from "../lib/order-sizes";
 
-/** Default finishing descriptions offered on a new product row. */
-export const DEFAULT_INSTRUCTIONS = [
-  "พิมพ์ลาย",
-  "ติดป้ายที่ป้ายขนาด",
-  "ติดสติกเกอร์บนเสื้อ",
-  "ติดสติกเกอร์บนเสื้อ",
-];
+export const GARMENT_TYPES = ["เสื้อเด็ก", "เสื้อผู้ใหญ่", "ผู้ใหญ่-ผ้าตัว", "ผู้ใหญ่-ผ้าชิ้น"] as const;
+
+export interface WorkDetails {
+  workFront: string;
+  workBack: string;
+  workSleeves: string;
+  productionSteps: string;
+  workRemark: string;
+}
 
 /** Anything that can carry a photo: an uploaded key, or an external URL. */
 export interface ImageRef {
@@ -73,22 +76,27 @@ export interface ImageRef {
   imageUrl?: string;
 }
 
-/**
- * One finishing step on a product — a reference photo plus what to do with it.
- * A product can carry as many of these as the job needs.
- */
-export interface Finishing extends ImageRef {
-  description: string;
-}
-
 /** A single colour of a product, with its per-size quantities. */
 export interface ColorVariant {
   color: string;
+  colorId?: string;
+  colorHex?: string;
   sizes: SizeBreakdown;
 }
 
+export interface ProductionArtwork extends ImageRef {
+  caption: string;
+}
+
+export interface ProductionSheetDetails {
+  /** Legacy alias retained for compatibility and audit; use productTypeValue. */
+  fabricType?: string;
+  artworks?: ProductionArtwork[];
+}
+
 /** One garment style within an order (e.g. MLS1035 "เช่น ลายพิมพ์สีน้ำเงิน"). */
-export interface OrderProduct extends ImageRef {
+export interface OrderProduct extends ImageRef, ProductionSheetDetails {
+  decorWork?: DecorWorkEntry[];
   revision?: number;
   history?: ProductHistoryEntry[];
   styleCode: string;
@@ -102,14 +110,28 @@ export interface OrderProduct extends ImageRef {
   status?: ProductStatus;
   /** Fabric details, techniques, cutting and outsourcing instructions. */
   productionNotes?: string;
-  finishings: Finishing[];
-  /**
-   * Text-only finishing list used before finishings carried photos. Kept so
-   * orders written by the old schema still render — read via
-   * {@link productFinishings}, never directly.
-   */
-  instructions?: string[];
+  workFront?: string;
+  workBack?: string;
+  workSleeves?: string;
+  productionSteps?: string;
+  workRemark?: string;
   variants: ColorVariant[];
+}
+
+export interface DecorWorkInput {
+  employee: string;
+  step: string;
+  date: string;
+  period: "morning" | "afternoon" | "ot";
+  quantities: { variantIndex: number; color: string; colorId?: string; sizes: Partial<SizeBreakdown> }[];
+}
+
+export interface DecorWorkEntry extends DecorWorkInput {
+  id: string;
+  at: string;
+  actor: string;
+  /** Snapshot colour names so historical entries survive order edits. */
+  quantities: { variantIndex: number; color: string; colorId?: string; sizes: Partial<SizeBreakdown> }[];
 }
 
 export interface ProductionQuantities {
@@ -122,11 +144,11 @@ export interface ProductHistoryEntry {
   id: string;
   at: string;
   actor: string;
-  kind: "production" | "image" | "finishings";
+  kind: "production" | "image" | "product_type" | "work_details" | "variants" | "product_details";
   from: ProductStatus;
   to: ProductStatus;
-  before: Partial<Pick<OrderProduct, "status" | "productionNotes" | "imageKey" | "finishings">>;
-  after: Partial<Pick<OrderProduct, "status" | "productionNotes" | "imageKey" | "finishings">>;
+  before: Partial<Pick<OrderProduct, "styleCode" | "designName" | "status" | "productType" | "fabricType" | "artworks" | "productionNotes" | "imageKey" | "variants" | "workFront" | "workBack" | "workSleeves" | "productionSteps" | "workRemark">>;
+  after: Partial<Pick<OrderProduct, "styleCode" | "designName" | "status" | "productType" | "fabricType" | "artworks" | "productionNotes" | "imageKey" | "variants" | "workFront" | "workBack" | "workSleeves" | "productionSteps" | "workRemark">>;
   quantities?: ProductionQuantities;
   note: string;
 }
@@ -144,19 +166,23 @@ export function productStatus(
   return product.status ?? DEFAULT_PRODUCT_STATUS;
 }
 
-/** Finishings of a product, upgrading orders stored before they had photos. */
-export function productFinishings(
-  product: Pick<OrderProduct, "finishings" | "instructions">,
-): Finishing[] {
-  if (product.finishings?.length) return product.finishings;
-  return (product.instructions ?? []).map((description) => ({ description }));
+export interface OrderStatusHistoryEntry {
+  id: string;
+  at: string;
+  actor: string;
+  from: OrderStatus;
+  to: OrderStatus;
 }
 
 export interface Order {
+  statusRevision?: number;
+  statusHistory?: OrderStatusHistoryEntry[];
   _id: ObjectId;
   title: string;
   reference: string;
   orderDate: Date;
+  /** Optional delivery date; absent on historical orders. */
+  deliveryDate?: string;
   status: OrderStatus;
   products: OrderProduct[];
   notes?: string;
@@ -180,23 +206,31 @@ export interface CreateOrderInput {
   title: string;
   reference?: string;
   orderDate?: string;
+  deliveryDate?: string;
   notes?: string;
   products: {
     styleCode: string;
     designName: string;
-    productType?: string;
+    productType: string;
     material?: string;
+    /** Legacy alias retained for compatibility and audit; use productTypeValue. */
+  fabricType?: string;
+    artworks?: ProductionArtwork[];
     status?: ProductStatus;
-    finishings?: Finishing[];
+    workFront?: string;
+    workBack?: string;
+    workSleeves?: string;
+    productionSteps?: string;
+    workRemark?: string;
     imageKey?: string;
     imageUrl?: string;
-    variants: { color: string; sizes: Partial<SizeBreakdown> }[];
+    variants: { color: string; colorId?: string; colorHex?: string; sizes: Partial<SizeBreakdown> }[];
   }[];
 }
 
 /** Sum of one colour variant's sizes. */
 export function variantTotal(variant: ColorVariant): number {
-  return SIZES.reduce((sum, size) => sum + (variant.sizes[size] || 0), 0);
+  return ALL_SIZES.reduce((sum, size) => sum + (variant.sizes[size] || 0), 0);
 }
 
 /** Sum of all colour variants of a product. */

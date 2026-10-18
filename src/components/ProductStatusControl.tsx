@@ -1,23 +1,22 @@
 "use client";
+import { ALL_SIZES } from "@/lib/order-sizes";
+
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, type ProductStatus, type ProductHistoryEntry } from "@/types/order";
+import {  productImageSrc, PRODUCT_STATUSES, PRODUCT_STATUS_LABELS, type ProductStatus, type ProductHistoryEntry } from "@/types/order";
+import { previousStageOutput } from "@/lib/production-defaults";
 import { formatDateTime, formatNumber } from "@/lib/format";
 
-const KIND = { production: "บันทึกการผลิต", image: "เปลี่ยนรูปสินค้า", finishings: "แก้ไขงานตกแต่ง" };
-const FIELDS = { status: "ขั้นตอนผลิต", productionNotes: "หมายเหตุการผลิต", imageKey: "รูปสินค้า", finishings: "งานตกแต่ง" };
+const KIND = { product_details: "แก้ไขสินค้า", product_type: "แก้ไขประเภทเสื้อ", production: "บันทึกการผลิต", image: "เปลี่ยนรูปสินค้า", variants: "แก้ไขสีและจำนวนตามไซซ์", work_details: "แก้ไขรายละเอียดงาน" };
+const FIELDS = { styleCode: "รหัส SKU", designName: "ชื่อลาย / ชื่องาน", productType: "ประเภทเสื้อ", fabricType: "ประเภทเสื้อเดิมจากอีกช่อง", artworks: "Print On / รูปประกอบ", status: "ขั้นตอนผลิต", productionNotes: "หมายเหตุการผลิต", imageKey: "รูปสินค้า", variants: "สีและจำนวนตามไซซ์", workFront: "หน้า", workBack: "หลัง", workSleeves: "แขน", productionSteps: "ขั้นตอนการผลิต", workRemark: "หมายเหตุงานพิเศษ" };
 
 function Snapshot({ data }: { data: ProductHistoryEntry["before"] }) {
   return <Stack spacing={0.5}>{Object.entries(data).map(([key, value]) => (
     <Box key={key}>
       <Typography variant="caption" color="text.secondary">{FIELDS[key as keyof typeof FIELDS]}</Typography>
-      {key === "imageKey" && value ? <Button href={`/api/images/${value}`} target="_blank" size="small">ดูรูปภาพ</Button> :
-        key === "finishings" && Array.isArray(value) ? <Stack>{value.length ? value.map((f, i) => <Box key={i}>
-          <Typography variant="body2">{f.description || "ไม่มีคำอธิบาย"}</Typography>
-          {(f.imageKey || f.imageUrl) && <Button href={f.imageKey ? `/api/images/${f.imageKey}` : f.imageUrl!} target="_blank" size="small">ดูรูปภาพ</Button>}
-        </Box>) : <Typography variant="body2">ไม่มีรายการ</Typography>}</Stack> :
+      {key === "variants" ? <Stack>{data.variants?.map((v, i) => <Typography key={i} variant="body2">{v.color} · {ALL_SIZES.filter(size => v.sizes[size] !== undefined).map(size => `${size}: ${v.sizes[size]}`).join(" · ")}</Typography>)}</Stack> : key === "artworks" ? <Stack>{data.artworks?.length ? data.artworks.map((artwork, i) => <Box key={i}><Typography variant="body2">{artwork.caption || "—"}</Typography>{productImageSrc(artwork) && <Button href={productImageSrc(artwork)!} target="_blank" rel="noopener noreferrer" size="small">ดูรูปประกอบ</Button>}</Box>) : <Typography variant="body2">ยังไม่มีรูปประกอบ</Typography>}</Stack> : key === "imageKey" && value ? <Button href={`/api/images/${value}`} target="_blank" size="small">ดูรูปภาพ</Button> :
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{key === "status" ? PRODUCT_STATUS_LABELS[value as ProductStatus] : String(value || "—")}</Typography>}
     </Box>
   ))}</Stack>;
@@ -37,7 +36,8 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
   const [withQuantity, setWithQuantity] = useState(false);
   const [received, setReceived] = useState("");
   const [sent, setSent] = useState("");
-  const [defective, setDefective] = useState("");
+  const [defective, setDefective] = useState("0");
+  const [receivedEdited, setReceivedEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef("");
@@ -46,14 +46,27 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
   const remaining = Number(received) - Number(sent) - Number(defective);
   const latest = [...history].reverse().find(e => e.quantities);
 
+  const suggested = previousStageOutput(history, next);
+
+  function changeStage(stage: ProductStatus) {
+    setNext(stage);
+    if (!receivedEdited) {
+      const source = previousStageOutput(history, stage);
+      setReceived(source ? String(source.sent) : "");
+    }
+    setError("");
+  }
+
   function begin() {
     setNext(status); setNotes(productionNotes); setReason(""); setWithQuantity(false);
-    setReceived(""); setSent(""); setDefective(""); setError("");
+    const source = previousStageOutput(history, status);
+    setReceived(source ? String(source.sent) : ""); setReceivedEdited(false);
+    setSent(""); setDefective("0"); setError("");
     requestId.current = crypto.randomUUID(); lastPayload.current = ""; setOpen(true);
   }
 
   async function save() {
-    const counts = [received, sent, defective];
+    const counts = [received, sent, defective.trim() || "0"];
     if (withQuantity && (counts.some(n => !/^\d+$/.test(n) || !Number.isSafeInteger(Number(n))) || Number(received) <= 0 || remaining < 0)) {
       setError("กรอกจำนวนเต็มให้ครบ รับเข้าต้องมากกว่า 0 และส่งออก + เสีย ต้องไม่เกินรับเข้า"); return;
     }
@@ -91,15 +104,16 @@ export function ProductStatusControl({ orderId, index, status, productionNotes =
     <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }} fullWidth maxWidth="sm">
       <DialogTitle>บันทึกการผลิตของ SKU</DialogTitle>
       <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-        <TextField select label="แผนก / ขั้นตอนที่บันทึก" value={next} disabled={busy} onChange={e => setNext(e.target.value as ProductStatus)}>
+        <TextField select label="แผนก / ขั้นตอนที่บันทึก" value={next} disabled={busy} onChange={e => changeStage(e.target.value as ProductStatus)}>
           {PRODUCT_STATUSES.map(s => <MenuItem key={s} value={s}>{PRODUCT_STATUS_LABELS[s]}</MenuItem>)}
         </TextField>
         <Typography variant="caption">จำนวนด้านล่างเป็นผลของแผนกที่เลือกในรายการนี้ สามารถบันทึกหลายครั้งในแผนกเดิมได้ โดยไม่เปลี่ยนยอดสั่งซื้อ</Typography>
         <FormControlLabel control={<Checkbox checked={withQuantity} disabled={busy} onChange={e => setWithQuantity(e.target.checked)} />} label="บันทึกจำนวนรับเข้า / ส่งออก / เสีย" />
         {withQuantity && <>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {([{ label: "รับเข้า (ตัว)", value: received, set: setReceived }, { label: "ส่งออก (ตัว)", value: sent, set: setSent }, { label: "เสีย (ตัว)", value: defective, set: setDefective }]).map(f => <TextField key={f.label} fullWidth label={f.label} type="number" value={f.value} disabled={busy} onChange={e => { f.set(e.target.value); setError(""); }} slotProps={{ htmlInput: { min: 0, step: 1 } }} />)}
+            {([{ label: "รับเข้า (ตัว)", value: received, set: (value: string) => { setReceived(value); setReceivedEdited(true); } }, { label: "ส่งออก (ตัว)", value: sent, set: setSent }, { label: "เสีย (ตัว)", value: defective, set: setDefective }]).map(f => <TextField key={f.label} fullWidth label={f.label} type="number" value={f.value} disabled={busy} onChange={e => { f.set(e.target.value); setError(""); }} slotProps={{ htmlInput: { min: 0, step: 1 } }} />)}
           </Stack>
+          <Typography variant="caption" color="text.secondary">{suggested ? `รับเข้าเติมจากยอดส่งออกล่าสุดของ${PRODUCT_STATUS_LABELS[suggested.stage]} ${suggested.sent} ตัว (แก้ไขได้)` : "ยังไม่มียอดส่งออกจากขั้นตอนก่อนหน้า กรุณากรอกรับเข้าเอง"} · ไม่กรอกจำนวนเสียจะนับเป็น 0</Typography>
           <Typography color={remaining < 0 ? "error" : "text.secondary"}>ค้างในแผนกจากรายการนี้: {formatNumber(remaining)} ตัว</Typography>
         </>}
         <TextField label="หมายเหตุรายการ / เหตุผลที่แก้ไข" multiline minRows={2} value={reason} disabled={busy} onChange={e => setReason(e.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} helperText="เช่น ส่งออก 8 ตัว เสีย 2 ตัวจากตะเข็บขาด หรืออ้างอิงรายการที่ต้องการแก้ไข" />

@@ -10,7 +10,7 @@ export interface DepartmentProduct {
 
 /** Preserve the original array index: writes must target this exact SKU occurrence. */
 export function departmentProducts(orders: SerializedOrder[], stage?: ProductStatus): DepartmentProduct[] {
-  return orders.filter(o => o.status === "new" || o.status === "in_production")
+  return orders.filter(o => o.status !== "cancelled")
     .flatMap(order => order.products.map((product, index) => ({
       orderId: order._id, orderReference: order.reference, orderDate: order.orderDate, index, product,
     })))

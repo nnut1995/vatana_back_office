@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MenuItem, Select } from "@mui/material";
+import { Alert, MenuItem, Select, Stack } from "@mui/material";
 import {
   ORDER_STATUSES,
   ORDER_STATUS_LABELS,
@@ -19,44 +19,55 @@ export function OrderStatusControl({
   size?: "small" | "medium";
 }) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [refreshing, startTransition] = useTransition();
   const [value, setValue] = useState<OrderStatus>(status);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   async function changeStatus(next: OrderStatus) {
+    const previous = value;
+    setError("");
     setValue(next);
     setSaving(true);
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify({ status: next, requestId: crypto.randomUUID() }),
       });
       if (res.ok) {
         startTransition(() => router.refresh());
       } else {
-        setValue(status);
+        setValue(previous);
+        setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
+    } catch {
+      setValue(previous);
+      setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
     } finally {
       setSaving(false);
     }
   }
 
   return (
+    <Stack spacing={1} onClick={e => e.stopPropagation()}>
     <Select
       size={size}
       value={value}
       inputProps={{ "aria-label": "สถานะคำสั่งซื้อ" }}
-      disabled={saving}
+      disabled={saving || refreshing}
       onChange={(e) => changeStatus(e.target.value as OrderStatus)}
       sx={{ minWidth: 150 }}
       onClick={(e) => e.stopPropagation()}
     >
+      {value === "shipped" && <MenuItem disabled value="shipped">จัดส่งแล้ว (สถานะเดิม)</MenuItem>}
       {ORDER_STATUSES.map((s) => (
         <MenuItem key={s} value={s}>
           {ORDER_STATUS_LABELS[s]}
         </MenuItem>
       ))}
     </Select>
+    {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
   );
 }

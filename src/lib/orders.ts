@@ -1,10 +1,15 @@
+import { listColors, assignConfiguredColors } from "@/lib/colors";
+import { applyOrderColors } from "@/lib/color-config";
+import { SIZES } from "./order-sizes";
+import { productTypeValue } from "@/lib/product-type";
+import { currentUser } from "@/lib/access";
 import { ObjectId, type Collection } from "mongodb";
+import { recordOrderStatusChange } from "@/lib/order-history";
 import { auth } from "@/auth";
 import { recordProductChange } from "@/lib/product-history";
 import type { ProductionQuantities } from "@/types/order";
 import { getDb } from "@/lib/mongodb";
-import {
-  SIZES,
+import { 
   DEFAULT_PRODUCT_STATUS,
   type Order,
   type SerializedOrder,
@@ -13,7 +18,8 @@ import {
   type ProductStatus,
   type SizeBreakdown,
   type ColorVariant,
-  type Finishing,
+  type WorkDetails,
+  type ProductionArtwork,
 } from "@/types/order";
 
 async function ordersCollection(): Promise<Collection<Order>> {
@@ -31,26 +37,14 @@ export function serializeOrder(order: Order): SerializedOrder {
   };
 }
 
-/**
- * Trim a finishing list coming from a client, dropping rows that carry neither
- * a description nor a photo.
- */
-export function normalizeFinishings(finishings: Finishing[] = []): Finishing[] {
-  return finishings
-    .map((f) => ({
-      description: (f.description ?? "").trim(),
-      imageKey: f.imageKey?.trim() || undefined,
-      imageUrl: f.imageUrl?.trim() || undefined,
-    }))
-    .filter((f) => f.description || f.imageKey || f.imageUrl);
-}
-
 /** Fill in any missing sizes with 0 so every variant is complete. */
 function normalizeSizes(sizes: Partial<SizeBreakdown>): SizeBreakdown {
-  return SIZES.reduce((acc, size) => {
+  const normalized = SIZES.reduce((acc, size) => {
     acc[size] = Number(sizes[size]) || 0;
     return acc;
   }, {} as SizeBreakdown);
+  if (sizes.XXL !== undefined) normalized.XXL = Number(sizes.XXL) || 0;
+  return normalized;
 }
 
 export async function listOrders(status?: OrderStatus): Promise<SerializedOrder[]> {
@@ -61,35 +55,44 @@ export async function listOrders(status?: OrderStatus): Promise<SerializedOrder[
     .sort({ orderDate: -1, createdAt: -1 })
     .limit(200)
     .toArray();
-  return orders.map(serializeOrder);
+  const colors = await listColors();
+  return orders.map(order => applyOrderColors(serializeOrder(order), colors));
 }
 
 export async function getOrder(id: string): Promise<SerializedOrder | null> {
   if (!ObjectId.isValid(id)) return null;
   const collection = await ordersCollection();
   const order = await collection.findOne({ _id: new ObjectId(id) });
-  return order ? serializeOrder(order) : null;
+  return order ? applyOrderColors(serializeOrder(order), await listColors()) : null;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<SerializedOrder> {
   const collection = await ordersCollection();
   const now = new Date();
 
+  const colors = await listColors();
   const products = input.products.map((p) => ({
     styleCode: p.styleCode.trim(),
     designName: p.designName.trim(),
-    productType: (p.productType || "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์").trim(),
+    productType: productTypeValue(p),
     material: p.material?.trim() || undefined,
+    fabricType: p.fabricType?.trim() || undefined,
+    artworks: (p.artworks ?? []).map((a) => ({ caption: a.caption.trim(), ...(a.imageKey ? { imageKey: a.imageKey } : {}), ...(a.imageUrl ? { imageUrl: a.imageUrl } : {}) })),
     status: p.status ?? DEFAULT_PRODUCT_STATUS,
-    finishings: normalizeFinishings(p.finishings),
+    workFront: p.workFront?.trim() || "",
+    workBack: p.workBack?.trim() || "",
+    workSleeves: p.workSleeves?.trim() || "",
+    productionSteps: p.productionSteps?.trim() || "",
+    workRemark: p.workRemark?.trim() || "",
     imageKey: p.imageKey?.trim() || undefined,
     imageUrl: p.imageUrl?.trim() || undefined,
-    variants: p.variants.map(
+    variants: assignConfiguredColors(p.variants.map(
       (v): ColorVariant => ({
         color: v.color.trim(),
+        colorId: v.colorId,
         sizes: normalizeSizes(v.sizes),
       }),
-    ),
+    ), colors),
   }));
 
   const order: Omit<Order, "_id"> = {
@@ -98,6 +101,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SerializedOr
       input.reference?.trim() ||
       `ORD-${now.getFullYear()}-${now.getTime().toString().slice(-6)}`,
     orderDate: input.orderDate ? new Date(input.orderDate) : now,
+    deliveryDate: input.deliveryDate || undefined,
     status: "new",
     products,
     notes: input.notes?.trim() || undefined,
@@ -121,9 +125,9 @@ export async function updateProductImage(id: string, index: number, imageKey: st
   return { ok };
 }
 
-export async function updateProductFinishings(id: string, index: number, finishings: Finishing[]) {
+export async function updateProductWorkDetails(id: string, index: number, details: WorkDetails & { artworks?: ProductionArtwork[] }, requestId?: string) {
   const ok = await recordProductChange(await ordersCollection(), id, index,
-    await auditActor(), "finishings", { finishings: normalizeFinishings(finishings) });
+    await auditActor(), "work_details", details, undefined, "", requestId);
   return { ok };
 }
 
@@ -131,22 +135,17 @@ export async function updateProductStatus(
   id: string, index: number, status: ProductStatus, productionNotes?: string,
   quantities?: ProductionQuantities, note = "", requestId?: string,
 ): Promise<boolean> {
-  return recordProductChange(await ordersCollection(), id, index, await auditActor(),
+  const user = await currentUser();
+  if (!user) return false;
+  return recordProductChange(await ordersCollection(), id, index, user.email,
     "production", {
       status,
       ...(productionNotes !== undefined ? { productionNotes: productionNotes.trim() } : {}),
-    }, quantities, note.trim(), requestId);
+    }, quantities, note.trim(), requestId, user.role === "admin" ? undefined : user.departments);
 }
 
 export async function updateOrderStatus(
-  id: string,
-  status: OrderStatus,
+  id: string, status: OrderStatus, requestId?: string,
 ): Promise<boolean> {
-  if (!ObjectId.isValid(id)) return false;
-  const collection = await ordersCollection();
-  const result = await collection.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { status, updatedAt: new Date() } },
-  );
-  return result.matchedCount > 0;
+  return recordOrderStatusChange(await ordersCollection(), id, status, await auditActor(), requestId);
 }

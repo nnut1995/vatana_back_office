@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/access";
 import { Alert, Box, Typography } from "@mui/material";
 import { listProductionReportEntries } from "@/lib/production-report-data";
 import { ProductionReport } from "@/components/ProductionReport";
@@ -6,6 +7,7 @@ import { bangkokDate } from "@/lib/production-report";
 export const dynamic = "force-dynamic";
 
 export default async function ProductionReportPage() {
+  await requireAdminPage();
   const entries = await listProductionReportEntries().catch(() => null);
   return <Box sx={{ p: { xs: 2, md: 4 } }}>
     <Typography variant="h4" gutterBottom>ผลงานรายแผนก</Typography>
