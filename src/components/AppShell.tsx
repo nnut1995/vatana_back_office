@@ -21,7 +21,10 @@ import {
   SvgIcon,
   Toolbar,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import MenuIcon from "@mui/icons-material/Menu";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -76,8 +79,56 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [departmentsOpen, setDepartmentsOpen] = useState(true);
+  const theme = useTheme();
+  // Tablets (landscape is ~1024px) get the full width; the menu opens on demand.
+  const permanent = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [departmentsOpen, setDepartmentsOpen] = useState(() => pathname.startsWith("/departments/"));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Close the slide-in menu after choosing a page.
+  const closeMenu = () => setMobileOpen(false);
+
+  const navigation = (
+    <>
+      <Toolbar />
+      <Divider />
+      <List component="nav" aria-label="เมนูหลัก" sx={{ px: 1, py: 1.5 }}>
+        {NAV.filter(item => user.role === "admin" || item.href === "/departments").map((item) => {
+          const active =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <ListItemButton
+              key={item.href}
+              component={Link}
+              href={item.href}
+              onClick={closeMenu}
+              selected={active}
+              sx={{ borderRadius: 2, mb: 0.5, minHeight: 48 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          );
+        })}
+        <ListItemButton onClick={() => setDepartmentsOpen(open => !open)} aria-expanded={departmentsOpen} aria-controls="department-navigation" sx={{ borderRadius: 2, mb: 0.5, minHeight: 48 }}>
+          <ListItemIcon sx={{ minWidth: 40 }}><AccountTreeIcon /></ListItemIcon>
+          <ListItemText primary="แผนก" />
+          {departmentsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        </ListItemButton>
+        <Collapse in={departmentsOpen} timeout="auto" unmountOnExit>
+          <List id="department-navigation" disablePadding>
+            {PRODUCT_STATUSES.filter(stage => user.role === "admin" || user.departments.includes(stage)).map(stage => (
+              <ListItemButton key={stage} component={Link} href={`/departments/${stage}`} onClick={closeMenu} selected={pathname === `/departments/${stage}`} sx={{ borderRadius: 2, mb: 0.5, minHeight: 48 }}>
+                <ListItemIcon sx={{ minWidth: 40 }}>{DEPARTMENT_ICONS[stage]}</ListItemIcon>
+                <ListItemText primary={PRODUCT_STATUS_LABELS[stage]} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Collapse>
+      </List>
+    </>
+  );
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -92,6 +143,18 @@ export function AppShell({
         }}
       >
         <Toolbar>
+          {!permanent && (
+            <IconButton
+              edge="start"
+              aria-label="เปิดเมนู"
+              aria-controls="app-navigation"
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen(open => !open)}
+              sx={{ mr: 1, width: 48, height: 48 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Avatar
             variant="rounded"
             sx={{ bgcolor: "primary.main", width: 32, height: 32, mr: 1.5, fontSize: 16 }}
@@ -101,7 +164,7 @@ export function AppShell({
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Vatana
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+          <Typography variant="body2" color="text.secondary" noWrap sx={{ mr: 1, display: { xs: "none", sm: "block" } }}>
             {user.name ?? user.email}
           </Typography>
           <IconButton aria-label="เมนูบัญชีผู้ใช้" onClick={(e) => setAnchorEl(e.currentTarget)} size="small">
@@ -125,48 +188,18 @@ export function AppShell({
       </AppBar>
 
       <Drawer
-        variant="permanent"
+        id="app-navigation"
+        variant={permanent ? "permanent" : "temporary"}
+        open={permanent || mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
         sx={{
-          width: DRAWER_WIDTH,
+          width: permanent ? DRAWER_WIDTH : 0,
           flexShrink: 0,
           [`& .MuiDrawer-paper`]: { width: DRAWER_WIDTH, boxSizing: "border-box" },
         }}
       >
-        <Toolbar />
-        <Divider />
-        <List sx={{ px: 1, py: 1.5 }}>
-          {NAV.filter(item => user.role === "admin" || item.href === "/departments").map((item) => {
-            const active =
-              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return (
-              <ListItemButton
-                key={item.href}
-                component={Link}
-                href={item.href}
-                selected={active}
-                sx={{ borderRadius: 2, mb: 0.5 }}
-              >
-                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            );
-          })}
-          <ListItemButton onClick={() => setDepartmentsOpen(open => !open)} aria-expanded={departmentsOpen} aria-controls="department-navigation" sx={{ borderRadius: 2, mb: 0.5 }}>
-            <ListItemIcon sx={{ minWidth: 40 }}><AccountTreeIcon /></ListItemIcon>
-            <ListItemText primary="แผนก" />
-            {departmentsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </ListItemButton>
-          <Collapse in={departmentsOpen} timeout="auto" unmountOnExit>
-          <List id="department-navigation" disablePadding>
-          {PRODUCT_STATUSES.filter(stage => user.role === "admin" || user.departments.includes(stage)).map(stage => (
-            <ListItemButton key={stage} component={Link} href={`/departments/${stage}`} selected={pathname === `/departments/${stage}`} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ minWidth: 40 }}>{DEPARTMENT_ICONS[stage]}</ListItemIcon>
-              <ListItemText primary={PRODUCT_STATUS_LABELS[stage]} />
-            </ListItemButton>
-          ))}
-          </List>
-          </Collapse>
-        </List>
+        {navigation}
       </Drawer>
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: "background.default" }}>

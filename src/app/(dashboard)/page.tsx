@@ -44,7 +44,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <Box sx={{ p: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Typography variant="h4" gutterBottom>
         ภาพรวม
       </Typography>
