@@ -1,5 +1,14 @@
 "use client";
+import { ALL_SIZES, emptySizeInputs } from "@/lib/order-sizes";
 
+import { sizeColumns, sizeLabel } from "@/lib/size-columns";
+
+import { ColorField } from "@/components/ColorField";
+import { ProductTypeField } from "@/components/ProductTypeField";
+import { parseProductType } from "@/lib/product-type";
+
+import { WorkDetailsEditor } from "@/components/WorkDetailsEditor";
+import { ProductTypeBadge } from "@/components/ProductTypeBadge";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -19,43 +28,41 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
-import {
-  SIZES,
-  DEFAULT_INSTRUCTIONS,
+import { 
+  type WorkDetails,
+  type ProductionArtwork,
   type CreateOrderInput,
   type Size,
 } from "@/types/order";
 import { formatNumber } from "@/lib/format";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
-import {
-  FinishingsEditor,
-  emptyFinishing,
-  fromFinishingForm,
-  type FinishingForm,
-} from "@/components/FinishingsEditor";
-
-type VariantForm = { color: string; sizes: Record<Size, string> };
-type ProductForm = {
+type VariantForm = { color: string; colorId?: string; sizes: Record<Size, string> };
+type ProductForm = WorkDetails & {
   styleCode: string;
   designName: string;
   productType: string;
   material: string;
-  finishings: FinishingForm[];
+  artworks: ProductionArtwork[];
   imageKey: string | null;
   variants: VariantForm[];
 };
 
-const emptySizes = (): Record<Size, string> =>
-  SIZES.reduce((acc, s) => ({ ...acc, [s]: "" }), {} as Record<Size, string>);
+// Keep initialization in the dependency-free runtime module with its size values.
+const emptySizes = emptySizeInputs;
 
 const emptyVariant = (): VariantForm => ({ color: "", sizes: emptySizes() });
 
 const emptyProduct = (): ProductForm => ({
   styleCode: "",
   designName: "",
-  productType: "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์",
+  productType: "",
   material: "",
-  finishings: DEFAULT_INSTRUCTIONS.map((d) => emptyFinishing(d)),
+  artworks: [{ caption: "Print On" }, { caption: "Tag on Size Label" }, { caption: "Stick on T-shirt" }],
+  workFront: "",
+  workBack: "",
+  workSleeves: "",
+  productionSteps: "",
+  workRemark: "",
   imageKey: null,
   variants: [emptyVariant()],
 });
@@ -63,19 +70,21 @@ const emptyProduct = (): ProductForm => ({
 const today = () => new Date().toISOString().slice(0, 10);
 
 function variantTotalOf(v: VariantForm): number {
-  return SIZES.reduce((n, s) => n + (Number(v.sizes[s]) || 0), 0);
+  return ALL_SIZES.reduce((n, s) => n + (Number(v.sizes[s]) || 0), 0);
 }
 
 export function NewOrderDialog() {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [artworkUploads, setArtworkUploads] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [reference, setReference] = useState("");
   const [orderDate, setOrderDate] = useState(today());
+  const [deliveryDate, setDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [products, setProducts] = useState<ProductForm[]>([emptyProduct()]);
 
@@ -84,6 +93,7 @@ export function NewOrderDialog() {
     setReference("");
     setOrderDate(today());
     setNotes("");
+    setDeliveryDate("");
     setProducts([emptyProduct()]);
     setError(null);
   }
@@ -121,9 +131,15 @@ export function NewOrderDialog() {
   );
 
   async function handleSubmit() {
+    if (artworkUploads.length) return;
     setError(null);
     if (!title.trim()) {
       setError("กรุณาระบุชื่อคำสั่งซื้อ");
+      return;
+    }
+
+    if (products.some((p) => !parseProductType(p.productType))) {
+      setError("กรุณาระบุประเภทเสื้อให้สินค้าทุกรายการ (ไม่เกิน 120 ตัวอักษร)");
       return;
     }
 
@@ -132,17 +148,21 @@ export function NewOrderDialog() {
       .map((p) => ({
         styleCode: p.styleCode.trim(),
         designName: p.designName.trim(),
-        productType: p.productType.trim() || "เสื้อยืดผู้ใหญ่ ยูนิเซ็กซ์",
+        productType: p.productType.trim(),
         material: p.material.trim() || undefined,
-        finishings: p.finishings
-          .map(fromFinishingForm)
-          .filter((f) => f.description || f.imageKey),
+        artworks: p.artworks.filter(a => a.imageKey || a.caption.trim()),
+        workFront: p.workFront,
+        workBack: p.workBack,
+        workSleeves: p.workSleeves,
+        productionSteps: p.productionSteps,
+        workRemark: p.workRemark,
         imageKey: p.imageKey ?? undefined,
         variants: p.variants
           .filter((v) => v.color.trim())
           .map((v) => ({
             color: v.color.trim(),
-            sizes: SIZES.reduce(
+            colorId: v.colorId,
+            sizes: ALL_SIZES.reduce(
               (acc, s) => ({ ...acc, [s]: Number(v.sizes[s]) || 0 }),
               {},
             ),
@@ -159,6 +179,7 @@ export function NewOrderDialog() {
       title: title.trim(),
       reference: reference.trim() || undefined,
       orderDate,
+      deliveryDate: deliveryDate || undefined,
       notes: notes.trim() || undefined,
       products: payloadProducts,
     };
@@ -192,7 +213,7 @@ export function NewOrderDialog() {
 
       <Dialog
         open={open}
-        onClose={() => !saving && setOpen(false)}
+        onClose={() => !saving && !artworkUploads.length && setOpen(false)}
         maxWidth="lg"
         fullWidth
         scroll="paper"
@@ -230,6 +251,10 @@ export function NewOrderDialog() {
               onChange={(e) => setOrderDate(e.target.value)}
             />
           </Stack>
+
+          <TextField label="กำหนดส่ง" type="date" value={deliveryDate}
+            onChange={(e) => setDeliveryDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }}
+            sx={{ mb: 2 }} />
 
           {/* Products */}
           <Typography variant="subtitle2" gutterBottom>
@@ -295,13 +320,9 @@ export function NewOrderDialog() {
                         onChange={(e) => patchProduct(pi, { material: e.target.value })}
                       />
                     </Stack>
-                    <TextField
-                      label="ประเภทสินค้า"
-                      size="small"
-                      fullWidth
-                      value={product.productType}
-                      onChange={(e) => patchProduct(pi, { productType: e.target.value })}
-                    />
+                    <Box sx={{ mb: 1 }}><ProductTypeBadge productType={product.productType} /></Box>
+                    <ProductTypeField value={product.productType} disabled={saving}
+                      onChange={(productType) => patchProduct(pi, { productType })} />
                   </Box>
                 </Stack>
 
@@ -312,24 +333,21 @@ export function NewOrderDialog() {
                       key={vi}
                       direction="row"
                       spacing={1}
-                      sx={{ alignItems: "center" }}
+                      useFlexGap
+                      sx={{ alignItems: "center", flexWrap: "wrap" }}
                     >
-                      <TextField
-                        label="สี"
-                        placeholder="กรมท่า"
-                        size="small"
-                        sx={{ width: 120 }}
-                        value={variant.color}
-                        onChange={(e) => patchVariant(pi, vi, { color: e.target.value })}
-                      />
-                      {SIZES.map((s) => (
+                      <Box sx={{ width: 230, maxWidth: "100%" }}>
+                        <ColorField color={variant.color} colorId={variant.colorId} disabled={saving}
+                          onChange={color => patchVariant(pi, vi, color)} />
+                      </Box>
+                      {sizeColumns(product).map((s) => (
                         <TextField
                           key={s}
-                          label={s}
+                          label={sizeLabel(product, s)}
                           type="number"
                           size="small"
                           sx={{ width: 72 }}
-                          slotProps={{ htmlInput: { min: 0 } }}
+                          slotProps={{ htmlInput: { min: 0, step: 1 }, inputLabel: { shrink: true } }}
                           value={variant.sizes[s]}
                           onChange={(e) => patchSize(pi, vi, s, e.target.value)}
                         />
@@ -369,12 +387,11 @@ export function NewOrderDialog() {
                 </Button>
 
                 <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                  รายละเอียดงานตกแต่ง
+                  รายละเอียดงาน
                 </Typography>
-                <FinishingsEditor
-                  value={product.finishings}
-                  onChange={(finishings) => patchProduct(pi, { finishings })}
-                />
+                <WorkDetailsEditor value={product} onChange={(details) => patchProduct(pi, details)} disabled={saving}
+                  onArtworkBusyChange={busy => setArtworkUploads(current => busy ? [...new Set([...current, pi])] : current.filter(i => i !== pi))}
+                  artworks={product.artworks} onArtworksChange={(artworks) => patchProduct(pi, { artworks })} />
               </Paper>
             ))}
           </Stack>
@@ -403,10 +420,10 @@ export function NewOrderDialog() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)} disabled={saving}>
+          <Button onClick={() => setOpen(false)} disabled={saving || artworkUploads.length > 0}>
             ยกเลิก
           </Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={saving}>
+          <Button variant="contained" onClick={handleSubmit} disabled={saving || artworkUploads.length > 0}>
             {saving ? "กำลังสร้าง…" : "สร้างคำสั่งซื้อ"}
           </Button>
         </DialogActions>

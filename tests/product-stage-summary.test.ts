@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { productStageSummary } from "../src/lib/product-stage-summary";
 import type { OrderProduct, ProductHistoryEntry } from "../src/types/order";
 const entry = (to: ProductHistoryEntry["to"], quantities?: ProductHistoryEntry["quantities"]): ProductHistoryEntry => ({ id: "test", at: "2026-09-28T00:00:00Z", actor: "test", kind: "production", from: "sample", to, before: {}, after: {}, note: "", quantities });
-const product: OrderProduct = { styleCode: "same", designName: "test", productType: "test", finishings: [], variants: [{ color: "white", sizes: { XS: 0, S: 15, M: 0, L: 0, XL: 0 } }] };
+const product: OrderProduct = { styleCode: "same", designName: "test", productType: "test", variants: [{ color: "white", sizes: { XS: 0, S: 15, M: 0, L: 0, XL: 0 } }] };
 test("summarizes quantities under the recorded stage while tracking current status separately", () => {
  const stages = productStageSummary({ ...product, status: "folding", history: [entry("sewing", { received: 10, sent: 8, defective: 2 }), entry("sewing", { received: 5, sent: 3, defective: 1 }), entry("folding"), { ...entry("sewing", { received: 100, sent: 100, defective: 0 }), kind: "image" }] });
  const sewing = stages.find(s => s.stage === "sewing")!;

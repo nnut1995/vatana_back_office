@@ -1,3 +1,9 @@
+import { validColorHex } from "@/lib/color-config";
+import { sizeColumns, sizeLabel, isChildShirt, CHILD_SIZE_NUMBERS } from "@/lib/size-columns";
+import { productTypeValue, legacyProductType } from "@/lib/product-type";
+import { ProductTypeControl } from "@/components/ProductTypeControl";
+import { DecorWorkControl } from "@/components/DecorWorkControl";
+import { SkuEditControl } from "@/components/SkuEditControl";
 import {
   Box,
   Paper,
@@ -12,32 +18,18 @@ import {
 import { formatNumber } from "@/lib/format";
 import { ProductImageControl } from "@/components/ProductImageControl";
 import { ProductImagePreview } from "@/components/ProductImagePreview";
-import { FinishingsControl } from "@/components/FinishingsControl";
+import { WorkDetailsControl } from "@/components/WorkDetailsControl";
 import { ProductStatusControl } from "@/components/ProductStatusControl";
-import { thaiDefault } from "@/lib/thai";
 import {
-  SIZES,
   variantTotal,
   productTotal,
-  productFinishings,
   productStatus,
   type OrderProduct,
   type SerializedOrder,
 } from "@/types/order";
 
-// Rough swatch colours for common garment colours; falls back to grey.
-const SWATCH: Record<string, string> = {
-  BLACK: "#111827",
-  WHITE: "#f9fafb",
-  NAVY: "#1e293b",
-  RED: "#dc2626",
-  BLUE: "#2563eb",
-  GREY: "#9ca3af",
-  GRAY: "#9ca3af",
-};
-
-function ColorSwatch({ color }: { color: string }) {
-  const bg = SWATCH[color.toUpperCase()] ?? "#c7c9d1";
+function ColorSwatch({ hex }: { hex?: string }) {
+  const bg = validColorHex(hex) ? hex : "transparent";
   return (
     <Box
       component="span"
@@ -60,11 +52,17 @@ export function ProductRow({
   orderId,
   index,
   previewImage = false,
+  readOnlyDetails = false,
+  decorSteps,
+  decorReadOnly = false,
 }: {
   product: OrderProduct;
   orderId: string;
   index: number;
   previewImage?: boolean;
+  readOnlyDetails?: boolean;
+  decorSteps?: string[];
+  decorReadOnly?: boolean;
 }) {
   return (
     <Paper sx={{ overflow: "hidden" }}>
@@ -86,6 +84,7 @@ export function ProductRow({
             bgcolor: "grey.50",
           }}
         >
+          <ProductTypeControl productType={productTypeValue(product)} legacyType={legacyProductType(product)} needsCanonical={!product.productType?.trim()} orderId={orderId} index={index} readOnly />
           {previewImage ? <ProductImagePreview image={product} alt={product.designName} /> : <ProductImageControl
             orderId={orderId}
             index={index}
@@ -98,9 +97,7 @@ export function ProductRow({
               {product.material}
             </Typography>
           )}
-          <Typography variant="caption" color="text.secondary" align="center">
-            {thaiDefault(product.productType)}
-          </Typography>
+
         </Box>
 
         {/* Middle: size grid */}
@@ -134,13 +131,15 @@ export function ProductRow({
               productionNotes={product.productionNotes}
             />
           </Box>
+          {!readOnlyDetails && <Box sx={{ px: 2, pt: 1 }}><SkuEditControl orderId={orderId} index={index} product={product} /></Box>}
           <Table size="small" sx={{ mt: 0.5 }}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>สี</TableCell>
-                {SIZES.map((s) => (
-                  <TableCell key={s} align="center" sx={{ fontWeight: 600 }}>
+                {sizeColumns(product).map((s) => (
+                  <TableCell key={s} align="center" aria-label={sizeLabel(product, s)} sx={{ fontWeight: 600 }}>
                     {s}
+                    {isChildShirt(product) && CHILD_SIZE_NUMBERS[s] && <Box component="span" sx={{ display: "block" }}>{CHILD_SIZE_NUMBERS[s]}</Box>}
                   </TableCell>
                 ))}
                 <TableCell align="center" sx={{ fontWeight: 700 }}>
@@ -152,10 +151,10 @@ export function ProductRow({
               {product.variants.map((variant, i) => (
                 <TableRow key={`${variant.color}-${i}`}>
                   <TableCell sx={{ whiteSpace: "nowrap" }}>
-                    <ColorSwatch color={variant.color} />
+                    <ColorSwatch hex={variant.colorHex} />
                     {variant.color}
                   </TableCell>
-                  {SIZES.map((s) => (
+                  {sizeColumns(product).map((s) => (
                     <TableCell key={s} align="center">
                       {variant.sizes[s] ? formatNumber(variant.sizes[s]) : "—"}
                     </TableCell>
@@ -168,7 +167,7 @@ export function ProductRow({
               {product.variants.length > 1 && (
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>รวมสินค้านี้</TableCell>
-                  <TableCell colSpan={SIZES.length} />
+                  <TableCell colSpan={sizeColumns(product).length} />
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
                     {formatNumber(productTotal(product))}
                   </TableCell>
@@ -178,7 +177,7 @@ export function ProductRow({
           </Table>
         </Box>
 
-        {/* Right: finishing steps (photo + description) */}
+        {/* Right: work overview and production sequence */}
         <Box
           sx={{
             width: { xs: "100%", md: 300 },
@@ -190,18 +189,26 @@ export function ProductRow({
             bgcolor: "grey.50",
           }}
         >
-          <FinishingsControl
+          <WorkDetailsControl
+            readOnly
             orderId={orderId}
             index={index}
-            finishings={productFinishings(product)}
+            workFront={product.workFront}
+            workBack={product.workBack}
+            workSleeves={product.workSleeves}
+            productionSteps={product.productionSteps}
+            workRemark={product.workRemark}
+            artworks={product.artworks}
           />
         </Box>
       </Box>
+      {(productStatus(product) === "decor" || !!product.decorWork?.length) && <DecorWorkControl product={product} orderId={orderId} index={index}
+        readOnly={decorReadOnly || productStatus(product) !== "decor"} steps={decorSteps} />}
     </Paper>
   );
 }
 
-export function OrderProductionSheet({ order }: { order: SerializedOrder }) {
+export function OrderProductionSheet({ order, decorSteps }: { order: SerializedOrder; decorSteps?: string[] }) {
   return (
     <Stack spacing={2}>
       {order.products.map((product, i) => (
@@ -210,6 +217,8 @@ export function OrderProductionSheet({ order }: { order: SerializedOrder }) {
           product={product}
           orderId={order._id}
           index={i}
+          decorSteps={decorSteps}
+          decorReadOnly={order.status === "cancelled"}
         />
       ))}
     </Stack>

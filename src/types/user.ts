@@ -7,5 +7,8 @@ export interface User {
   /** bcrypt hash — never sent to the client. */
   passwordHash: string;
   role: "admin" | "staff";
+  departments?: import("@/types/order").ProductStatus[];
+  active?: boolean;
+  updatedAt?: Date;
   createdAt: Date;
 }

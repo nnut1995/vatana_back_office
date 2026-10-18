@@ -26,6 +26,7 @@ interface UploadResult {
 export interface ProductImageUploadProps {
   /** S3 key of the current photo, or null when the product has none. */
   imageKey: string | null;
+  onBusyChange?: (busy: boolean) => void;
   /** Called with the new key after a successful upload, or null on remove. */
   onChange: (key: string | null) => void | Promise<void>;
   /** Externally hosted photo to show while there is no uploaded `imageKey`. */
@@ -48,6 +49,7 @@ export interface ProductImageUploadProps {
  */
 export function ProductImageUpload({
   imageKey,
+  onBusyChange,
   onChange,
   fallbackSrc,
   alt = "รูปสินค้า",
@@ -74,7 +76,7 @@ export function ProductImageUpload({
       return;
     }
 
-    setBusy(true);
+    setBusy(true); onBusyChange?.(true);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -89,7 +91,7 @@ export function ProductImageUpload({
     } catch {
       setError("อัปโหลดไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง");
     } finally {
-      setBusy(false);
+      setBusy(false); onBusyChange?.(false);
     }
   }
 

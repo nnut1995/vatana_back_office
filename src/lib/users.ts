@@ -17,7 +17,7 @@ export async function verifyCredentials(
 ): Promise<{ id: string; email: string; name: string; role: string } | null> {
   const collection = await usersCollection();
   const user = await collection.findOne({ email: email.toLowerCase() });
-  if (!user) return null;
+  if (!user || user.active === false) return null;
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;

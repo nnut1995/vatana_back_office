@@ -17,12 +17,6 @@ const dbName = process.env.MONGODB_DB || "vatana";
 const ADMIN_EMAIL = "admin@vatana.local";
 const ADMIN_PASSWORD = "admin123";
 
-// Each finishing step is a description plus an optional reference photo
-// (`imageKey`), uploaded later from the production sheet.
-const FINISHINGS = ["Print On", "Tag on Size Label", "Stick on T-shirt", "Stick on T-shirt"].map(
-  (description) => ({ description }),
-);
-
 // [XS, S, M, L, XL] -> size object
 const sizes = ([xs, s, m, l, xl]: number[]) => ({ XS: xs, S: s, M: m, L: l, XL: xl });
 
@@ -34,10 +28,14 @@ const product = (
 ) => ({
   styleCode,
   designName,
-  productType: "ADULTS UNISEX T-SHIRT",
+  productType: "เสื้อผู้ใหญ่",
   material,
   status: "sample",
-  finishings: FINISHINGS,
+  workFront: "พิมพ์ + GLOW",
+  workBack: "ทรานสเฟอร์",
+  workSleeves: "ทรานสเฟอร์",
+  productionSteps: "1. พิมพ์หน้าที่แผนกพิมพ์\n2. พิมพ์หลัง + แขนที่แผนกตกแต่ง",
+  workRemark: "",
   variants: variants.map((v) => ({ color: v.color, sizes: sizes(v.qty) })),
 });
 

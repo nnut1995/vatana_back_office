@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/access";
 import {
   Alert,
   Box,
@@ -19,6 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requireAdminPage();
   let orders: Awaited<ReturnType<typeof listOrders>> = [];
   let dbError = false;
   try {
